@@ -1,0 +1,75 @@
+name: PC Cleaner Release
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build PC Cleaner
+        run: npm run tauri -- build
+      - name: Prepare release assets
+        id: release
+        shell: pwsh
+        run: |
+          $cargo = Get-Content "src-tauri/Cargo.toml" -Raw
+          if ($cargo -notmatch '(?m)^version\s*=\s*"([^"]+)"') {
+            throw "Version not found in src-tauri/Cargo.toml"
+          }
+          $version = $Matches[1]
+          $tag = "${{ github.ref_name }}"
+          if ($tag -ne "v$version") {
+            throw "Git tag $tag does not match application version $version"
+          }
+
+          $exe = "target/release/pc-cleaner.exe"
+          $setup = "target/release/bundle/nsis/PC Cleaner_${version}_x64-setup.exe"
+          if (!(Test-Path $exe)) { throw "Built EXE not found: $exe" }
+          if (!(Test-Path $setup)) { throw "NSIS installer not found: $setup" }
+
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item $exe "release/PC-Cleaner-$version-x64.exe" -Force
+          Copy-Item $setup "release/PC-Cleaner-$version-x64-setup.exe" -Force
+
+          $hash = (Get-FileHash "release/PC-Cleaner-$version-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $repo = "${{ github.repository }}"
+          $manifest = [ordered]@{
+            version = $version
+            url = "https://github.com/$repo/releases/download/$tag/PC-Cleaner-$version-x64.exe"
+            sha256 = $hash
+            release_page = "https://github.com/$repo/releases/tag/$tag"
+            notes = "PC Cleaner $version"
+          } | ConvertTo-Json
+          Set-Content "release/latest.json" $manifest -Encoding utf8
+
+          "version=$version" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: PC Cleaner v${{ steps.release.outputs.version }}
+          generate_release_notes: true
+          files: |
+            release/PC-Cleaner-${{ steps.release.outputs.version }}-x64.exe
+            release/PC-Cleaner-${{ steps.release.outputs.version }}-x64-setup.exe
+            release/latest.json

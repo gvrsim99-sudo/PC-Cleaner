@@ -1,0 +1,8 @@
+node_modules/
+target/
+src-tauri/target/
+.DS_Store
+*.log
+*.png
+release/
+

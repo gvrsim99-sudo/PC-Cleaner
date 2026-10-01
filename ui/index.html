@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PC Cleaner</title>
+  <style>
+    :root { font-family: Inter, Segoe UI, system-ui, sans-serif; color: #e9eef5; background: #0b0f14; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top left, #192536 0%, #0b0f14 42%); }
+    .app { max-width: 1120px; margin: 0 auto; padding: 34px; }
+    .top { display:flex; justify-content:space-between; align-items:center; margin-bottom: 26px; }
+    .brand { display:flex; gap:12px; align-items:center; }
+    .logo { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; background:#dcecff; color:#0b0f14; font-weight:900; }
+    h1 { margin:0; font-size:25px; letter-spacing:-.4px; }
+    .muted { color:#91a0b2; font-size:14px; }
+    .hero { display:grid; grid-template-columns: 1.1fr .9fr; gap:22px; align-items:stretch; }
+    .panel { background: rgba(18,25,34,.84); border:1px solid rgba(255,255,255,.08); border-radius:22px; padding:28px; box-shadow:0 18px 50px rgba(0,0,0,.24); }
+    .scan { display:flex; flex-direction:column; justify-content:center; min-height:360px; }
+    .label { color:#91a0b2; font-size:13px; text-transform:uppercase; letter-spacing:1px; }
+    .score { font-size:76px; font-weight:800; margin:8px 0 0; letter-spacing:-3px; }
+    .score small { font-size:26px; letter-spacing:0; color:#9caec2; }
+    .status { margin:10px 0 26px; color:#b9c5d1; }
+    button { border:0; border-radius:14px; padding:15px 20px; font:inherit; font-weight:700; cursor:pointer; }
+    .primary { background:#e7f1ff; color:#091018; }
+    .primary:disabled, .ghost:disabled { opacity:.45; cursor:not-allowed; }
+    .ghost { background:#1a2430; color:#d7e2ed; border:1px solid rgba(255,255,255,.08); }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .cards { display:grid; gap:12px; }
+    .metric { display:flex; justify-content:space-between; gap:14px; padding:16px 17px; background:#121a23; border-radius:15px; border:1px solid rgba(255,255,255,.06); }
+    .metric strong { font-size:16px; }
+    .metric span { color:#aebdcc; }
+    .section { margin-top:22px; scroll-margin-top:18px; }
+    .section h2 { margin:0 0 14px; font-size:18px; }
+    .table { width:100%; border-collapse:collapse; overflow:hidden; border-radius:15px; }
+    .table th,.table td { text-align:left; padding:13px 12px; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
+    .table th { color:#91a0b2; font-weight:600; }
+    .table td.path { max-width:560px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .empty { padding:26px; color:#91a0b2; text-align:center; background:#121a23; border-radius:15px; }
+    .item-row { display:grid; grid-template-columns:32px minmax(0,1fr) auto auto; gap:12px; align-items:center; padding:12px 13px; background:#121a23; border:1px solid rgba(255,255,255,.06); border-radius:13px; margin-bottom:8px; }
+    .item-row input { width:18px; height:18px; }
+    .item-main { min-width:0; }
+    .item-name { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .item-path { margin-top:3px; color:#748294; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .badge { font-size:11px; padding:5px 8px; border-radius:99px; white-space:nowrap; background:#1a2430; color:#b9c5d1; }
+    .badge.safe { color:#d9f4df; background:#153022; }
+    .list-note { padding:10px 12px; margin-bottom:10px; background:#0e141b; border-radius:10px; color:#91a0b2; font-size:12px; }
+    .progress { width:100%; height:8px; background:#18212b; border-radius:99px; overflow:hidden; display:none; margin-bottom:14px; }
+    .progress > i { display:block; width:38%; height:100%; background:#cfe3fb; animation:move 1s infinite ease-in-out; }
+    @keyframes move { 0%{transform:translateX(-110%)} 100%{transform:translateX(280%)} }
+    .footnote { margin-top:20px; color:#748294; font-size:12px; line-height:1.5; }
+    .nav-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .nav-btn { padding:10px 13px; border-radius:12px; background:#121a23; color:#cbd6e2; border:1px solid rgba(255,255,255,.07); text-decoration:none; display:inline-flex; align-items:center; }
+    .nav-btn:hover { background:#192431; }
+    .progress-wrap { display:none; margin:8px 0 12px; }
+    .progress-top { display:flex; justify-content:space-between; gap:12px; color:#b9c5d1; font-size:12px; margin-bottom:7px; }
+    .progress-bar { height:8px; background:#18212b; border-radius:99px; overflow:hidden; }
+    .progress-bar i { display:block; width:0%; height:100%; background:#cfe3fb; transition:width .2s ease; }
+    .grid-2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .setting-card { padding:16px; background:#121a23; border:1px solid rgba(255,255,255,.06); border-radius:15px; }
+    .setting-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:10px 0; }
+    .setting-row + .setting-row { border-top:1px solid rgba(255,255,255,.05); }
+    .setting-row label { cursor:pointer; }
+    .setting-row input[type=checkbox] { width:18px; height:18px; }
+    .setting-row input[type=number],.setting-row input[type=time],.setting-row input[type=text], textarea { width:100%; background:#0e141b; color:#e9eef5; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:10px 11px; font:inherit; }
+    textarea { min-height:110px; resize:vertical; }
+    .days { display:flex; gap:6px; flex-wrap:wrap; }
+    .day { padding:7px 9px; border-radius:9px; background:#0e141b; border:1px solid rgba(255,255,255,.07); }
+    .storage-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; gap:12px; align-items:center; padding:12px 13px; background:#121a23; border:1px solid rgba(255,255,255,.06); border-radius:13px; margin-bottom:8px; }
+    .storage-name { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .storage-meta { color:#748294; font-size:12px; margin-top:3px; }
+    .browser-card { display:grid; grid-template-columns:1fr auto auto; gap:14px; align-items:center; padding:14px 16px; background:#121a23; border:1px solid rgba(255,255,255,.06); border-radius:14px; margin-bottom:8px; }
+    .mini-btn { padding:9px 11px; border-radius:10px; background:#1a2430; color:#d7e2ed; border:1px solid rgba(255,255,255,.08); }
+    .crumb { display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin-bottom:12px; color:#91a0b2; font-size:12px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 9px; border-radius:999px; background:#0e141b; border:1px solid rgba(255,255,255,.06); }
+    .danger-note { padding:12px 14px; background:#281c1c; border:1px solid rgba(255,180,180,.10); border-radius:12px; color:#e9c9c9; font-size:12px; line-height:1.45; }
+    .modal { position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.62); backdrop-filter:blur(5px); z-index:50; padding:20px; }
+    .modal-card { width:min(720px,100%); max-height:88vh; overflow:auto; background:#101720; border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:22px; box-shadow:0 30px 90px rgba(0,0,0,.5); }
+    .preview-image { width:100%; max-height:55vh; object-fit:contain; border-radius:12px; background:#0b0f14; }
+    @media (max-width: 860px) { .grid-2 { grid-template-columns:1fr; } .browser-card,.storage-row { grid-template-columns:1fr auto; } }
+    @media (max-width: 860px) { .hero { grid-template-columns:1fr; } .app { padding:20px; } .score { font-size:60px; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand"><div class="logo">PC</div><div><h1>PC Cleaner</h1><div class="muted">Безопасная очистка и глубокий анализ</div></div></div>
+    <div class="nav-actions"><a class="nav-btn" id="storageNavBtn" href="#storageSection">Хранилище</a><a class="nav-btn" id="browserNavBtn" href="#browserSection">Браузеры</a><a class="nav-btn" id="settingsNavBtn" href="#settingsSection">Настройки</a><a class="nav-btn" id="updatesNavBtn" href="#updatesSection">Обновления</a></div>
+  </div>
+
+  <div class="hero">
+    <section class="panel scan">
+      <div class="label">Найдено мусора</div>
+      <div class="score" id="total">0 <small>GB</small></div>
+      <div class="status" id="status">Готово к сканированию.</div>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-top"><span id="progressStage">Подготовка</span><span id="progressText">0%</span></div>
+        <div class="progress-bar"><i id="progressFill"></i></div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="scanBtn">Глубокое сканирование</button>
+        <button class="ghost" id="cancelScanBtn" disabled>Отмена</button>
+        <button class="ghost" id="smartCleanNowBtn">Smart Clean</button>
+        <button class="ghost" id="cleanBtn" disabled>Очистить выбранное</button>
+      </div>
+      <div class="footnote">Автоудаление ограничено только категориями, помеченными ядром как безопасные. Недавние и занятые файлы пропускаются.</div>
+    </section>
+
+    <section class="panel">
+      <div class="label">Состояние диска C:</div>
+      <div class="score" id="driveUsed">— <small>%</small></div>
+      <div class="status" id="driveStatus">После сканирования покажем свободное место.</div>
+      <div class="cards" id="categories"><div class="empty">Разбивка появится после сканирования.</div></div>
+    </section>
+  </div>
+
+  <section class="panel section">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin-bottom:4px">Найденные элементы</h2>
+        <div class="muted" id="selectionStatus">После сканирования выберите, что удалить.</div>
+      </div>
+      <div class="actions">
+        <select id="categoryFilter" class="ghost" style="padding:10px 12px">
+          <option value="all">Все категории</option>
+        </select>
+        <button class="ghost" id="selectSafeBtn" disabled>Выбрать безопасные</button>
+        <button class="ghost" id="clearSelectionBtn" disabled>Снять выбор</button>
+      </div>
+    </div>
+    <div id="itemsList" style="margin-top:14px"><div class="empty">Сканирование ещё не запускалось.</div></div>
+  </section>
+
+  <section class="panel section" id="browserSection">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div><h2 style="margin-bottom:4px">Браузеры</h2><div class="muted" id="browserStatus">Проверим безопасные кэши Chrome, Edge и Firefox отдельно.</div></div>
+      <div class="actions"><button class="ghost" id="browserScanBtn">Проверить кэш</button><button class="ghost" id="browserCleanBtn" disabled>Очистить безопасный кэш</button><button class="ghost" id="recycleBinBtn">Очистить корзину</button></div>
+    </div>
+    <div id="browserList" style="margin-top:14px"><div class="empty">Данные браузеров ещё не проверялись.</div></div>
+    <div style="margin-top:16px"><div class="label">Дополнительные данные</div><div id="browserPrivacyList" style="margin-top:10px"><div class="empty">После проверки покажем cookies, историю, метаданные загрузок и данные сайтов.</div></div></div>
+    <div class="danger-note" style="margin-top:10px">Cookies, история, метаданные загрузок и данные сайтов могут завершить активные сессии и потребуют повторного входа. Их очистка доступна отдельно, только после явного предупреждения и перемещения в карантин.</div>
+  </section>
+
+  <section class="panel section" id="storageSection">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div><h2 style="margin-bottom:4px">Анализ хранилища</h2><div class="muted" id="storageStatus">Покажем, какие папки занимают место на диске C:.</div></div>
+      <div class="actions"><button class="ghost" id="storageRunBtn">Анализировать C:</button><button class="ghost" id="storageBackBtn" disabled>Назад</button></div>
+    </div>
+    <div class="crumb" id="storageBreadcrumb">C:\</div>
+    <div id="storageList"><div class="empty">Запустите анализ хранилища.</div></div>
+  </section>
+
+  <section class="panel section" id="largestSection">
+    <h2>Крупнейшие файлы</h2>
+    <div id="largest"><div class="empty">Сканирование ещё не запускалось.</div></div>
+  </section>
+
+  <section class="panel section">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin-bottom:4px">Карантин</h2>
+        <div class="muted" id="quarantineStatus">Файлы после очистки перемещаются сюда и могут быть восстановлены.</div>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="restoreBtn" disabled>Восстановить выбранное</button>
+        <button class="ghost" id="selectAllQuarantineBtn" disabled>Выбрать всё</button>
+        <button class="ghost" id="clearQuarantineSelectionBtn" disabled>Снять выбор</button>
+      </div>
+    </div>
+    <div id="quarantineList" style="margin-top:14px"><div class="empty">Карантин пуст.</div></div>
+  </section>
+
+  <section class="panel section">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin-bottom:4px">История</h2>
+        <div class="muted" id="activityStatus">Последние действия PC Cleaner.</div>
+      </div>
+    </div>
+    <div id="activityList" style="margin-top:14px"><div class="empty">История пока пуста.</div></div>
+  </section>
+
+  <section class="panel section">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin-bottom:4px">Дубликаты</h2>
+        <div class="muted" id="duplicateStatus">Точные копии можно подготовить к удалению, сохранив одну копию в каждой группе.</div>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="selectDuplicatesBtn" disabled>Выбрать лишние копии</button>
+        <button class="ghost" id="clearDuplicateSelectionBtn" disabled>Снять выбор</button>
+      </div>
+    </div>
+    <div id="duplicates" style="margin-top:14px"><div class="empty">После глубокого сканирования здесь появятся точные дубликаты.</div></div>
+  </section>
+
+  <section class="panel section" id="settingsSection">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div><h2 style="margin-bottom:4px">Настройки</h2><div class="muted" id="settingsStatus">Конфигурация сохранится локально на этом ПК.</div></div>
+      <div class="actions"><button class="primary" id="saveSettingsBtn">Сохранить настройки</button><button class="ghost" id="resetSettingsBtn">По умолчанию</button></div>
+    </div>
+    <div class="grid-2" style="margin-top:14px">
+      <div class="setting-card">
+        <div class="label">Сканирование</div>
+        <div class="setting-row"><label><input type="checkbox" id="setUserTemp"> Временные файлы пользователя</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setSystemTemp"> Системный Temp</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setBrowserCache"> Кэши браузеров</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setCrashDumps"> Дампы и отчёты сбоев</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setShaderCache"> Графический кэш</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setThumbnails"> Кэш миниатюр</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setAppCaches"> Кэши популярных приложений</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setOldInstallers"> Старые установочные файлы (только просмотр)</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setWindowsUpdate"> Кэш Windows Update (только просмотр)</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setRecycleBin"> Размер корзины</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setLargeFiles"> Крупные файлы</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setDuplicates"> Точные дубликаты</label></div>
+        <div class="setting-row"><div><div>Защита недавних файлов</div><div class="muted">Не трогать файлы младше указанного времени</div></div><input id="setRecentHours" type="number" min="1" max="168" style="width:100px" /></div>
+      </div>
+      <div class="setting-card">
+        <div class="label">Автоматизация</div>
+        <div class="setting-row"><label><input type="checkbox" id="setAutostart"> Запускать вместе с Windows</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setTray"> Сворачивать в системный трей при закрытии</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="setSmart"> Включить Smart Clean по расписанию</label></div>
+        <div class="setting-row"><div><div>Время Smart Clean</div><div class="muted">Работает в выбранные дни</div></div><input id="setSmartTime" type="time" style="width:130px" /></div>
+        <div style="padding:10px 0"><div class="muted" style="margin-bottom:8px">Дни недели</div><div class="days"><label class="day"><input type="checkbox" data-smart-day="MON" /> Пн</label><label class="day"><input type="checkbox" data-smart-day="TUE" /> Вт</label><label class="day"><input type="checkbox" data-smart-day="WED" /> Ср</label><label class="day"><input type="checkbox" data-smart-day="THU" /> Чт</label><label class="day"><input type="checkbox" data-smart-day="FRI" /> Пт</label><label class="day"><input type="checkbox" data-smart-day="SAT" /> Сб</label><label class="day"><input type="checkbox" data-smart-day="SUN" /> Вс</label></div></div>
+        <div class="setting-row"><label><input type="checkbox" id="setSmartDuplicates"> Включать безопасный поиск дубликатов в Smart Clean</label></div>
+        <div class="setting-row"><div><div>Исключённые пути</div><div class="muted">По одному пути на строку</div></div></div>
+        <textarea id="setExclusions" placeholder="C:\Users\User\Documents\Рабочее\nC:\Games"></textarea>
+      </div>
+      <div class="setting-card">
+        <div class="label">Разрешённая очистка и карантин</div>
+        <div class="setting-row"><label><input type="checkbox" id="allowTemp"> Временные файлы</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowSystemTemp"> Системные временные файлы</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowBrowserCache"> Кэш браузера</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowCrash"> Дампы и отчёты сбоев</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowShader"> Графический кэш</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowThumbs"> Кэш миниатюр</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowAppCache"> Кэш приложений</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowDuplicates"> Дубликаты</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowBrowserData"> Cookies / история / данные сайтов (требует предупреждения)</label></div>
+        <div class="setting-row"><div><div>Максимум карантина</div><div class="muted">Новые файлы не будут перемещены сверх лимита</div></div><input id="setQuarantineMaxGb" type="number" min="1" max="1000" style="width:100px" /></div>
+        <div class="setting-row"><div><div>Срок хранения карантина</div><div class="muted">После срока старые файлы удаляются окончательно</div></div><input id="setQuarantineRetentionDays" type="number" min="1" max="3650" style="width:100px" /></div>
+        <div class="setting-row"><div><div>Лимит Smart Clean</div><div class="muted">Максимум данных за одну автооперацию</div></div><input id="setSmartMaxGb" type="number" min="1" max="100" style="width:100px" /></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel section" id="updatesSection">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div><h2 style="margin-bottom:4px">Обновления</h2><div class="muted" id="updateStatus">Текущая версия загружается…</div></div>
+      <div class="actions"><button class="ghost" id="checkUpdateBtn">Проверить обновления</button><button class="ghost" id="installUpdateBtn" disabled>Установить обновление</button><button class="ghost" id="openReleaseBtn" disabled>Страница релиза</button><button class="ghost" id="openDownloadBtn" disabled>Скачать</button></div>
+    </div>
+    <div class="setting-card" style="margin-top:14px"><div class="label">Источник обновлений</div><input id="updateManifestInput" type="text" placeholder="https://example.com/pc-cleaner/latest.json" /><div class="muted" style="margin-top:8px">Манифест: version, notes, url, sha256 и при необходимости release_page. Установка выполняется одной кнопкой после проверки SHA-256; перед заменой EXE приложение автоматически закроется и перезапустится.</div></div>
+  </section>
+</div>
+
+<div class="modal" id="previewModal"><div class="modal-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 id="previewTitle" style="margin:0">Предпросмотр</h2><button class="ghost" id="closePreviewBtn">Закрыть</button></div><div id="previewBody" style="margin-top:14px"></div></div></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const invoke = window.__TAURI__?.core?.invoke;
+  if (!invoke) {
+    $('status').textContent = 'Ошибка: Tauri API не подключён. Приложение собрано без IPC bridge.';
+    throw new Error('Tauri global API is unavailable');
+  }
+  let lastScan = null;
+  const selectedIds = new Set();
+  const selectedDuplicatePaths = new Set();
+  const selectedQuarantineIds = new Set();
+  let appSettings = null;
+  let storagePathStack = [];
+  let latestUpdate = null;
+  const tauriListen = window.__TAURI__?.event?.listen;
+  function startScan() { $('scanBtn').click(); }
+
+  async function initProgressListener() {
+    if (!tauriListen) return;
+    await tauriListen('scan-progress', event => {
+      const p = event.payload || {};
+      $('progressWrap').style.display = 'block';
+      $('progressStage').textContent = p.stage || 'Сканирование';
+      $('progressText').textContent = p.percent >= 0 ? String(Math.round(p.percent)) + '%' : 'идёт…';
+      if (p.percent >= 0) $('progressFill').style.width = String(Math.round(p.percent)) + '%';
+      else $('progressFill').style.width = '38%';
+      const counter = p.total > 0
+        ? `Проверено ${Number(p.current).toLocaleString('ru-RU')} / ${Number(p.total).toLocaleString('ru-RU')}`
+        : (p.current > 0 ? `Проверено ${Number(p.current).toLocaleString('ru-RU')} файлов` : '');
+      const found = p.found_items > 0 ? `Найдено ${Number(p.found_items).toLocaleString('ru-RU')} · ${bytes(p.found_bytes)}` : '';
+      $('status').textContent = [p.detail || 'Проверка файлов…', counter, found].filter(Boolean).join(' · ');
+    });
+    await tauriListen('tray-scan-request', () => startScan());
+    await tauriListen('smart-clean-result', event => {
+      $('status').textContent = event.payload ? 'Smart Clean завершён.' : 'Smart Clean завершился с ошибкой.';
+      renderQuarantine(); renderActivity();
+    });
+  }
+
+  function bytes(n) {
+    if (!n) return '0 B';
+    const units = ['B','KB','MB','GB','TB'];
+    let value = n, u = 0;
+    while (value >= 1024 && u < units.length - 1) { value /= 1024; u++; }
+    return u === 0 ? `${Math.round(value)} ${units[u]}` : `${value.toFixed(1)} ${units[u]}`;
+  }
+
+  function allDuplicateFiles() {
+    return (lastScan?.duplicates || []).flatMap(group => group.files);
+  }
+
+  function formatUnixTime(value) {
+    if (!value) return '—';
+    return new Date(value * 1000).toLocaleString('ru-RU');
+  }
+
+  async function renderActivity() {
+    try {
+      const items = await invoke('list_activity');
+      $('activityStatus').textContent = items.length
+        ? `Последние ${Math.min(items.length, 500).toLocaleString('ru-RU')} действий.`
+        : 'История пока пуста.';
+      $('activityList').innerHTML = items.length ? items.slice(0, 100).map(item => `<div class="item-row">
+        <span class="badge ${item.action === 'Восстановление' ? 'safe' : ''}">${escapeHtml(item.action)}</span>
+        <div class="item-main"><div class="item-name">${escapeHtml(item.item)}</div><div class="item-path">${escapeHtml(formatUnixTime(item.timestamp_unix))}</div></div>
+        <strong>${bytes(item.size)}</strong>
+      </div>`).join('') : '<div class="empty">История пока пуста.</div>';
+    } catch (error) {
+      $('activityStatus').textContent = `Ошибка чтения истории: ${error}`;
+    }
+  }
+
+  async function renderQuarantine() {
+    try {
+      const items = await invoke('list_quarantine');
+      const validIds = new Set(items.map(item => item.id));
+      for (const id of [...selectedQuarantineIds]) {
+        if (!validIds.has(id)) selectedQuarantineIds.delete(id);
+      }
+      const totalBytes = items.reduce((sum, item) => sum + item.size, 0);
+      const maxBytes = Number(appSettings?.quarantine_max_gb || 10) * 1024 * 1024 * 1024;
+      $('quarantineStatus').textContent = items.length
+        ? `${items.length.toLocaleString('ru-RU')} файлов · ${bytes(totalBytes)} / ${bytes(maxBytes)} · хранение ${appSettings?.quarantine_retention_days || 30} дн.`
+        : `Карантин пуст · лимит ${bytes(maxBytes)} · хранение ${appSettings?.quarantine_retention_days || 30} дн.`;
+      $('restoreBtn').disabled = selectedQuarantineIds.size === 0;
+      $('selectAllQuarantineBtn').disabled = items.length === 0;
+      $('clearQuarantineSelectionBtn').disabled = selectedQuarantineIds.size === 0;
+      $('quarantineList').innerHTML = items.length ? items.map(item => `
+        <label class="item-row">
+          <input type="checkbox" data-quarantine-id="${escapeHtml(item.id)}" ${selectedQuarantineIds.has(item.id) ? 'checked' : ''} />
+          <div class="item-main">
+            <div class="item-name">${escapeHtml(item.name)}</div>
+            <div class="item-path" title="${escapeHtml(item.original_path)}">${escapeHtml(item.original_path)}</div>
+          </div>
+          <span class="badge">${escapeHtml(formatUnixTime(item.moved_unix))}</span>
+          <strong>${bytes(item.size)}</strong>
+        </label>`).join('') : '<div class="empty">Карантин пуст. После очистки файлы появятся здесь вместо безвозвратного удаления.</div>';
+    } catch (error) {
+      $('quarantineStatus').textContent = `Ошибка чтения карантина: ${error}`;
+    }
+  }
+
+  function duplicateKeepScore(file) {
+    const p = String(file.path || '').toLowerCase().replaceAll('/', '\\');
+    let score = 0;
+    if (/[\\](windows|program files|program files \(x86\)|programdata)[\\]/.test(p)) score -= 1000;
+    if (/[\\](appdata|temp|cache|cache2|node_modules|target)[\\]/.test(p)) score -= 35;
+    if (/[\\](documents|desktop|pictures|videos|onedrive)[\\]/.test(p)) score += 70;
+    if (/[\\](project|projects|work|рабоч|repo|repos|git)[\\]/.test(p)) score += 55;
+    if (/[\\]downloads[\\]/.test(p)) score += 20;
+    if (/backup|backuped|archive/.test(p)) score += 15;
+    score += Math.min(20, Math.log10(Math.max(1, (p.match(/[\\]/g) || []).length)) * 8);
+    score += (file.modified_unix || 0) / 1e10;
+    return score;
+  }
+
+  function chooseDuplicateKeeper(group) {
+    return [...group.files].sort((a,b) => duplicateKeepScore(b) - duplicateKeepScore(a))[0];
+  }
+
+  function renderDuplicateGroups() {
+    const groups = lastScan?.duplicates || [];
+    if (!groups.length) {
+      $('duplicateStatus').textContent = 'Точных дубликатов не найдено.';
+      $('duplicates').innerHTML = '<div class="empty">Точных дубликатов не найдено.</div>';
+      return;
+    }
+    let total = 0;
+    $('duplicates').innerHTML = groups.slice(0, 100).map((group, i) => {
+      const ordered = [...group.files];
+      const keeper = chooseDuplicateKeeper(group);
+      const extra = ordered.filter(file => file.path !== keeper.path);
+      total += group.size * extra.length;
+      return `<div class="metric" style="display:block;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+          <strong>Группа ${i + 1} · ${bytes(group.size)} × ${ordered.length}</strong>
+          <span class="badge safe">Освобождается ${bytes(group.size * extra.length)}</span>
+        </div>
+        <div class="list-note">Рекомендуется оставить копию в пользовательской/рабочей папке. Системные, временные и кэш-каталоги получают приоритет на очистку; при равенстве учитывается дата изменения.</div>
+        <div class="item-row" style="opacity:.8">
+          <span class="badge safe">Оставить</span>
+          <div class="item-main"><div class="item-name">${escapeHtml(keeper.path)}</div></div>
+          <strong>${bytes(keeper.size)}</strong>
+        </div>
+        ${extra.map(file => `<div class="item-row">
+          <input type="checkbox" data-duplicate-path="${escapeHtml(file.path)}" ${selectedDuplicatePaths.has(file.path) ? 'checked' : ''} />
+          <div class="item-main">
+            <div class="item-name">${escapeHtml(file.path)}</div>
+            <div class="item-path">${escapeHtml(formatUnixTime(file.modified_unix))}</div>
+          </div>
+          <span class="badge">Копия</span>
+          <button class="mini-btn" type="button" data-preview-path="${escapeHtml(file.path)}">Превью</button>
+          <button class="mini-btn" type="button" data-open-path="${escapeHtml(file.path)}">Папка</button>
+          <strong>${bytes(file.size)}</strong>
+        </div>`).join('')}
+      </div>`;
+    }).join('');
+    $('duplicateStatus').textContent = `${groups.length.toLocaleString('ru-RU')} групп · ${bytes(total)} можно освободить после проверки.`;
+    $('selectDuplicatesBtn').disabled = false;
+    $('clearDuplicateSelectionBtn').disabled = selectedDuplicatePaths.size === 0;
+  }
+
+  function renderItems() {
+    if (!lastScan) return;
+    const filter = $('categoryFilter').value;
+    const all = lastScan.items;
+    const visible = filter === 'all' ? all : all.filter(x => x.category === filter);
+    const safeVisible = visible.filter(x => x.safe_to_delete);
+    const selected = all.filter(x => selectedIds.has(x.id) && x.safe_to_delete);
+    const selectedBytes = selected.reduce((sum, item) => sum + item.size, 0);
+    const selectedDuplicate = allDuplicateFiles().filter(x => selectedDuplicatePaths.has(x.path));
+    const duplicateBytes = selectedDuplicate.reduce((sum, item) => sum + item.size, 0);
+    const selectedTotal = selected.length + selectedDuplicate.length;
+    $('selectionStatus').textContent = selectedTotal
+      ? `Выбрано ${selectedTotal.toLocaleString('ru-RU')} файлов · ${bytes(selectedBytes + duplicateBytes)}.`
+      : 'Ничего не выбрано. Безопасные файлы и лишние копии можно выбрать для очистки.';
+
+    $('cleanBtn').disabled = selectedTotal === 0;
+    $('selectSafeBtn').disabled = safeVisible.length === 0;
+    $('clearSelectionBtn').disabled = selectedIds.size === 0;
+    $('selectDuplicatesBtn').disabled = !lastScan?.duplicates?.length;
+    $('clearDuplicateSelectionBtn').disabled = selectedDuplicatePaths.size === 0;
+
+    if (!visible.length) {
+      $('itemsList').innerHTML = '<div class="empty">Для выбранной категории ничего не найдено.</div>';
+      return;
+    }
+
+    const limited = visible.slice(0, 300);
+    const note = visible.length > limited.length
+      ? `<div class="list-note">Показаны первые ${limited.length} из ${visible.length.toLocaleString('ru-RU')} найденных элементов. Остальные учитываются в общей статистике.</div>`
+      : '';
+    $('itemsList').innerHTML = note + limited.map(item => `
+      <label class="item-row">
+        <input type="checkbox" data-item-id="${escapeHtml(item.id)}" ${selectedIds.has(item.id) ? 'checked' : ''} ${item.safe_to_delete ? '' : 'disabled'} />
+        <div class="item-main">
+          <div class="item-name">${escapeHtml(item.name)}</div>
+          <div class="item-path" title="${escapeHtml(item.path)}">${escapeHtml(item.path)}</div>
+        </div>
+        <span class="badge">${escapeHtml(item.category)}</span>
+        <span class="badge ${item.safe_to_delete ? 'safe' : ''}">${item.safe_to_delete ? 'Безопасно' : 'Не удалять'}</span>
+        <strong>${bytes(item.size)}</strong>
+      </label>`).join('');
+  }
+
+  function render(scan) {
+    $('total').innerHTML = `${(scan.total_bytes / 1024 / 1024 / 1024).toFixed(1)} <small>GB</small>`;
+    $('status').textContent = `Найдено ${scan.total_items.toLocaleString('ru-RU')} файлов для анализа. Дубликатов: ${scan.duplicates.length}.`;
+    if (scan.drive.total_bytes) {
+      $('driveUsed').innerHTML = `${scan.drive.used_percent.toFixed(0)} <small>%</small>`;
+      $('driveStatus').textContent = `Свободно ${bytes(scan.drive.free_bytes)} из ${bytes(scan.drive.total_bytes)}.`;
+    }
+
+    const entries = Object.entries(scan.by_category).sort((a,b) => b[1] - a[1]);
+    $('categories').innerHTML = entries.length ? entries.map(([name, size]) => `<div class="metric"><strong>${escapeHtml(name)}</strong><span>${bytes(size)}</span></div>`).join('') : '<div class="empty">Ничего подходящего для очистки не найдено.</div>';
+
+    const current = $('categoryFilter').value;
+    $('categoryFilter').innerHTML = '<option value="all">Все категории</option>' + entries.map(([name]) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    $('categoryFilter').value = entries.some(([name]) => name === current) ? current : 'all';
+
+    renderItems();
+
+    $('largest').innerHTML = scan.largest_files.length ? `<table class="table"><thead><tr><th>Файл</th><th>Размер</th></tr></thead><tbody>${scan.largest_files.map(x => `<tr><td class="path" title="${escapeHtml(x.path)}">${escapeHtml(x.path)}</td><td>${bytes(x.size)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Крупных файлов в доступных каталогах не найдено.</div>';
+
+    renderDuplicateGroups();
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  }
+
+  $('categoryFilter').addEventListener('change', renderItems);
+
+  $('itemsList').addEventListener('change', (event) => {
+    const checkbox = event.target.closest('input[data-item-id]');
+    if (!checkbox) return;
+    const id = checkbox.dataset.itemId;
+    if (checkbox.checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+    renderItems();
+  });
+
+  $('selectSafeBtn').addEventListener('click', () => {
+    if (!lastScan) return;
+    const filter = $('categoryFilter').value;
+    lastScan.items.filter(x => x.safe_to_delete && (filter === 'all' || x.category === filter)).forEach(x => selectedIds.add(x.id));
+    renderItems();
+  });
+
+  $('clearSelectionBtn').addEventListener('click', () => {
+    selectedIds.clear();
+    renderItems();
+  });
+
+  $('duplicates').addEventListener('change', (event) => {
+    const checkbox = event.target.closest('input[data-duplicate-path]');
+    if (!checkbox) return;
+    const path = checkbox.dataset.duplicatePath;
+    if (checkbox.checked) selectedDuplicatePaths.add(path);
+    else selectedDuplicatePaths.delete(path);
+    renderItems();
+  });
+
+  $('selectDuplicatesBtn').addEventListener('click', () => {
+    selectedDuplicatePaths.clear();
+    (lastScan?.duplicates || []).forEach(group => {
+      const keeper = chooseDuplicateKeeper(group);
+      group.files.filter(file => file.path !== keeper.path).forEach(file => selectedDuplicatePaths.add(file.path));
+    });
+    renderDuplicateGroups();
+    renderItems();
+  });
+
+  $('clearDuplicateSelectionBtn').addEventListener('click', () => {
+    selectedDuplicatePaths.clear();
+    renderDuplicateGroups();
+    renderItems();
+  });
+
+  $('quarantineList').addEventListener('change', (event) => {
+    const checkbox = event.target.closest('input[data-quarantine-id]');
+    if (!checkbox) return;
+    const id = checkbox.dataset.quarantineId;
+    if (checkbox.checked) selectedQuarantineIds.add(id);
+    else selectedQuarantineIds.delete(id);
+    renderQuarantine();
+  });
+
+  $('selectAllQuarantineBtn').addEventListener('click', async () => {
+    const items = await invoke('list_quarantine');
+    items.forEach(item => selectedQuarantineIds.add(item.id));
+    renderQuarantine();
+  });
+
+  $('clearQuarantineSelectionBtn').addEventListener('click', () => {
+    selectedQuarantineIds.clear();
+    renderQuarantine();
+  });
+
+  $('restoreBtn').addEventListener('click', async () => {
+    const ids = [...selectedQuarantineIds];
+    if (!ids.length) return;
+    const ok = confirm(`Восстановить ${ids.length.toLocaleString('ru-RU')} файлов в исходные места?`);
+    if (!ok) return;
+    $('restoreBtn').disabled = true;
+    try {
+      const report = await invoke('restore_quarantine', { ids });
+      selectedQuarantineIds.clear();
+      $('status').textContent = `Восстановлено ${report.deleted_items.toLocaleString('ru-RU')} файлов. Ошибок: ${report.failed_items}.`;
+      await renderQuarantine();
+      await renderActivity();
+    } catch (error) {
+      $('quarantineStatus').textContent = `Ошибка восстановления: ${error}`;
+      await renderQuarantine();
+    }
+  });
+
+  $('scanBtn').addEventListener('click', async () => {
+    selectedIds.clear();
+    selectedDuplicatePaths.clear();
+    $('scanBtn').disabled = true;
+    $('cleanBtn').disabled = true;
+    $('cancelScanBtn').disabled = false;
+    $('smartCleanNowBtn').disabled = true;
+    $('progressWrap').style.display = 'block';
+    $('progressFill').style.width = '0%';
+    $('progressStage').textContent = 'Подготовка';
+    $('progressText').textContent = '0%';
+    $('status').textContent = 'Идёт анализ временных файлов, кэшей, крупных файлов и дубликатов…';
+    try {
+      $('status').textContent = 'Быстрый анализ: временные файлы и крупные файлы…';
+      lastScan = await invoke('scan_system');
+      render(lastScan);
+      $('status').textContent = `Основной анализ завершён: найдено ${lastScan.total_items.toLocaleString('ru-RU')} файлов. Теперь проверяем точные дубликаты…`;
+      $('progressWrap').style.display = 'block';
+      try {
+        lastScan.duplicates = await invoke('scan_duplicates_only');
+        render(lastScan);
+        $('status').textContent = `Сканирование завершено: ${lastScan.total_items.toLocaleString('ru-RU')} файлов · дубликатов ${lastScan.duplicates.length}.`;
+      } catch (duplicateError) {
+        $('status').textContent = `Основной анализ завершён, но поиск дубликатов не удалось завершить: ${duplicateError}`;
+      }
+    } catch (error) {
+      $('status').textContent = `Ошибка сканирования: ${error}`;
+    } finally {
+      $('progressWrap').style.display = 'none';
+      $('scanBtn').disabled = false;
+      $('cancelScanBtn').disabled = true;
+      $('smartCleanNowBtn').disabled = false;
+    }
+  });
+
+  $('cancelScanBtn').addEventListener('click', async () => {
+    $('cancelScanBtn').disabled = true;
+    $('status').textContent = 'Останавливаем сканирование…';
+    try { await invoke('cancel_scan'); } catch (error) { $('status').textContent = 'Ошибка остановки: ' + error; }
+  });
+
+  $('cleanBtn').addEventListener('click', async () => {
+    if (!lastScan) return;
+    const selectedRegular = lastScan.items.filter(x => selectedIds.has(x.id) && x.safe_to_delete);
+    const selectedDuplicateItems = allDuplicateFiles().filter(x => selectedDuplicatePaths.has(x.path)).map(file => ({
+      id: `duplicate-${file.path}`,
+      path: file.path,
+      name: file.path,
+      category: 'Дубликаты',
+      reason: 'Точная копия',
+      size: file.size,
+      safe_to_delete: true,
+      confidence: 'высокая'
+    }));
+    const selected = [...selectedRegular, ...selectedDuplicateItems];
+    if (!selected.length) return;
+    const selectedBytes = selected.reduce((sum, item) => sum + item.size, 0);
+    const systemRoots = ['\\windows\\', '\\program files\\', '\\program files (x86)\\', '\\programdata\\'];
+    const systemCount = selected.filter(item => {
+      const p = String(item.path || '').toLowerCase().replaceAll('/', '\\');
+      return systemRoots.some(root => p.includes(root));
+    }).length;
+    const ok = confirm(`Будет перемещено в карантин: ${selected.length.toLocaleString('ru-RU')} файлов, ${bytes(selectedBytes)}.\nСистемных файлов: ${systemCount}.\nНедавних файлов: 0 (защита недавних файлов включена).\n\nОригиналы можно будет восстановить из карантина.`);
+    if (!ok) return;
+    $('cleanBtn').disabled = true;
+    $('status').textContent = `Перемещаем ${selected.length.toLocaleString('ru-RU')} выбранных файлов в карантин…`;
+    try {
+      const report = await invoke('cleanup', { items: selected });
+      selected.forEach(x => selectedIds.delete(x.id));
+      $('status').textContent = `Перемещено в карантин ${report.deleted_items.toLocaleString('ru-RU')} файлов · ${bytes(report.deleted_bytes)}. Ошибок: ${report.failed_items}.`;
+      await renderQuarantine();
+      await renderActivity();
+      if (report.deleted_items) {
+        lastScan = await invoke('scan_system');
+        render(lastScan);
+      } else {
+        renderItems();
+      }
+    } catch (error) {
+      $('status').textContent = `Ошибка очистки: ${error}`;
+      renderItems();
+    }
+  });
+
+  function defaultSettings() {
+    return {
+      scan_user_temp: true, scan_system_temp: true, scan_browser_cache: true,
+      scan_windows_update: false, scan_crash_dumps: true, scan_shader_cache: true,
+      scan_recycle_bin: true, scan_large_files: true, scan_duplicates: true,
+      scan_thumbnails: true, scan_app_caches: true, scan_old_installers: true,
+      recent_protection_hours: 24, excluded_paths: [],
+      cleanup_allowed_categories: ["Временные файлы","Системные временные файлы","Кэш браузера","Дампы сбоев","Отчёты сбоев Windows","Графический кэш","Кэш приложений","Кэш миниатюр","Дубликаты"],
+      quarantine_max_gb: 10, quarantine_retention_days: 30,
+      auto_start: false, minimize_to_tray: true, smart_clean_enabled: false, smart_clean_time: "03:00",
+      smart_clean_days: ["SUN"], smart_clean_include_duplicates: false, smart_clean_max_gb: 5,
+      update_manifest_url: "https://raw.githubusercontent.com/gvrsim99-sudo/DefenderGuard/pc-cleaner-updates/pc-cleaner/latest.json", release_page_url: ""
+    };
+  }
+
+  function applySettings(s) {
+    appSettings = Object.assign(defaultSettings(), s || {});
+    const map = {
+      setUserTemp:"scan_user_temp", setSystemTemp:"scan_system_temp",
+      setBrowserCache:"scan_browser_cache", setCrashDumps:"scan_crash_dumps",
+      setShaderCache:"scan_shader_cache", setThumbnails:"scan_thumbnails",
+      setAppCaches:"scan_app_caches", setOldInstallers:"scan_old_installers",
+      setWindowsUpdate:"scan_windows_update", setRecycleBin:"scan_recycle_bin",
+      setLargeFiles:"scan_large_files", setDuplicates:"scan_duplicates", setAutostart:"auto_start",
+      setTray:"minimize_to_tray", setSmart:"smart_clean_enabled",
+      setSmartDuplicates:"smart_clean_include_duplicates"
+    };
+    Object.keys(map).forEach(id => { const el=$(id); if (el) el.checked = !!appSettings[map[id]]; });
+    const allowed = new Set(appSettings.cleanup_allowed_categories || []);
+    const allowedMap = {
+      allowTemp:"Временные файлы", allowSystemTemp:"Системные временные файлы",
+      allowBrowserCache:"Кэш браузера", allowCrash:"Дампы сбоев", allowShader:"Графический кэш",
+      allowThumbs:"Кэш миниатюр", allowAppCache:"Кэш приложений", allowDuplicates:"Дубликаты",
+      allowBrowserData:"Данные браузера"
+    };
+    Object.keys(allowedMap).forEach(id => { const el=$(id); if (el) el.checked = allowed.has(allowedMap[id]); });
+    $('setRecentHours').value = appSettings.recent_protection_hours || 24;
+    $('setQuarantineMaxGb').value = appSettings.quarantine_max_gb || 10;
+    $('setQuarantineRetentionDays').value = appSettings.quarantine_retention_days || 30;
+    $('setSmartMaxGb').value = appSettings.smart_clean_max_gb || 5;
+    $('setSmartTime').value = appSettings.smart_clean_time || "03:00";
+    $('setExclusions').value = (appSettings.excluded_paths || []).join("\n");
+    $('updateManifestInput').value = appSettings.update_manifest_url || defaultSettings().update_manifest_url;
+    document.querySelectorAll("[data-smart-day]").forEach(el => { el.checked = (appSettings.smart_clean_days || []).includes(el.dataset.smartDay); });
+  }
+
+  function collectSettings() {
+    const dayValues = [...document.querySelectorAll("[data-smart-day]:checked")].map(el => el.dataset.smartDay);
+    const s = defaultSettings();
+    s.scan_user_temp = $('setUserTemp').checked;
+    s.scan_system_temp = $('setSystemTemp').checked;
+    s.scan_browser_cache = $('setBrowserCache').checked;
+    s.scan_crash_dumps = $('setCrashDumps').checked;
+    s.scan_shader_cache = $('setShaderCache').checked;
+    s.scan_thumbnails = $('setThumbnails').checked;
+    s.scan_app_caches = $('setAppCaches').checked;
+    s.scan_old_installers = $('setOldInstallers').checked;
+    s.scan_windows_update = $('setWindowsUpdate').checked;
+    s.scan_recycle_bin = $('setRecycleBin').checked;
+    s.scan_large_files = $('setLargeFiles').checked;
+    s.scan_duplicates = $('setDuplicates').checked;
+    s.recent_protection_hours = Number($('setRecentHours').value) || 24;
+    s.excluded_paths = $('setExclusions').value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    const allowed = {
+      allowTemp:"Временные файлы", allowSystemTemp:"Системные временные файлы", allowBrowserCache:"Кэш браузера",
+      allowCrash:"Дампы сбоев", allowShader:"Графический кэш", allowThumbs:"Кэш миниатюр",
+      allowAppCache:"Кэш приложений", allowDuplicates:"Дубликаты", allowBrowserData:"Данные браузера"
+    };
+    s.cleanup_allowed_categories = Object.keys(allowed).filter(id => $(id).checked).map(id => allowed[id]);
+    s.quarantine_max_gb = Number($('setQuarantineMaxGb').value) || 10;
+    s.quarantine_retention_days = Number($('setQuarantineRetentionDays').value) || 30;
+    s.smart_clean_max_gb = Number($('setSmartMaxGb').value) || 5;
+    s.auto_start = $('setAutostart').checked;
+    s.minimize_to_tray = $('setTray').checked;
+    s.smart_clean_enabled = $('setSmart').checked;
+    s.smart_clean_time = $('setSmartTime').value || "03:00";
+    s.smart_clean_days = dayValues.length ? dayValues : ["SUN"];
+    s.smart_clean_include_duplicates = $('setSmartDuplicates').checked;
+    s.update_manifest_url = $('updateManifestInput').value.trim();
+    s.release_page_url = appSettings?.release_page_url || "";
+    return s;
+  }
+
+  async function loadSettings() {
+    try {
+      const s = await invoke("get_settings");
+      applySettings(s);
+      try { $('setAutostart').checked = await invoke("is_autostart_enabled"); } catch {}
+      appSettings.auto_start = $('setAutostart').checked;
+      $('settingsStatus').textContent = "Настройки загружены.";
+    } catch (error) {
+      applySettings(defaultSettings());
+      $('settingsStatus').textContent = "Не удалось загрузить настройки: " + error;
+    }
+  }
+
+  $('saveSettingsBtn').addEventListener("click", async () => {
+    const settings = collectSettings();
+    $('saveSettingsBtn').disabled = true;
+    $('settingsStatus').textContent = "Сохраняем…";
+    try {
+      const saved = await invoke("save_smart_schedule", { settings });
+      applySettings(saved);
+      await invoke("set_autostart", { enabled: saved.auto_start });
+      appSettings = saved;
+      $('settingsStatus').textContent = "Настройки сохранены. Smart Clean обновлён.";
+    } catch (error) {
+      $('settingsStatus').textContent = "Ошибка сохранения: " + error;
+    } finally { $('saveSettingsBtn').disabled = false; }
+  });
+
+  $('resetSettingsBtn').addEventListener("click", () => {
+    if (!confirm("Вернуть безопасные настройки по умолчанию?")) return;
+    applySettings(defaultSettings());
+    $('settingsStatus').textContent = "Настройки сброшены. Нажмите «Сохранить настройки».";
+  });
+
+  function renderStorage(buckets) {
+    const list = buckets || [];
+    const total = list.reduce((sum,x) => sum + x.size, 0);
+    $('storageStatus').textContent = list.length
+      ? ("Найдено " + list.length.toLocaleString("ru-RU") + " объектов · " + bytes(total) + " в просмотренной области.")
+      : "Каталог пуст или недоступен.";
+    $('storageBackBtn').disabled = storagePathStack.length === 0;
+    $('storageList').innerHTML = list.length ? list.slice(0, 150).map(x => {
+      const action = x.kind === "directory" ? '<button class="mini-btn" data-storage-open="' + escapeHtml(x.path) + '">Открыть</button>' : "";
+      return '<div class="storage-row">' +
+        '<div><div class="storage-name" title="' + escapeHtml(x.path) + '">' + escapeHtml(x.name) + '</div>' +
+        '<div class="storage-meta">' + escapeHtml(x.path) + ' · ' + x.file_count.toLocaleString("ru-RU") + ' файлов</div></div>' +
+        '<strong>' + bytes(x.size) + '</strong><span class="badge">' + escapeHtml(x.kind) + '</span>' + action + '</div>';
+    }).join("") : '<div class="empty">Ничего не найдено.</div>';
+  }
+
+  async function runStorage(path) {
+    $('storageRunBtn').disabled = true;
+    $('storageStatus').textContent = "Анализируем " + (path || "C:\\") + "…";
+    $('progressWrap').style.display = "block";
+    try {
+      const buckets = await invoke("analyze_storage", { path: path || null });
+      renderStorage(buckets);
+      $('storageBreadcrumb').textContent = path || "C:\\";
+    } catch (error) {
+      $('storageStatus').textContent = "Ошибка анализа хранилища: " + error;
+    } finally { $('storageRunBtn').disabled = false; $('progressWrap').style.display = "none"; }
+  }
+
+  $('storageRunBtn').addEventListener("click", () => runStorage(storagePathStack.at(-1) || "C:\\"));
+  $('storageBackBtn').addEventListener("click", () => {
+    if (!storagePathStack.length) return;
+    storagePathStack.pop();
+    runStorage(storagePathStack.at(-1) || "C:\\");
+  });
+  $('storageList').addEventListener("click", event => {
+    const btn = event.target.closest("[data-storage-open]");
+    if (!btn) return;
+    const path = btn.dataset.storageOpen;
+    storagePathStack.push(path);
+    runStorage(path);
+  });
+
+  function renderBrowsers(items) {
+    const list = items || [];
+    const safe = list.filter(x => x.browser !== "Mozilla Firefox");
+    $('browserCleanBtn').disabled = safe.length === 0;
+    $('browserStatus').textContent = list.length
+      ? list.map(x => x.browser + ": " + bytes(x.size)).join(" · ")
+      : "Поддерживаемые кэши не найдены.";
+    $('browserList').innerHTML = list.length ? list.map(x =>
+      '<div class="browser-card"><div><div class="storage-name">' + escapeHtml(x.browser) + '</div>' +
+      '<div class="storage-meta">' + escapeHtml(x.path) + '</div></div>' +
+      '<strong>' + bytes(x.size) + '</strong><span class="badge ' + (x.browser === "Mozilla Firefox" ? "" : "safe") + '">' +
+      (x.browser === "Mozilla Firefox" ? "Требует проверки" : "Безопасный кэш") + '</span></div>'
+    ).join("") : '<div class="empty">Кэши браузеров не найдены.</div>';
+  }
+
+  function renderBrowserPrivacy(items) {
+    const list = items || [];
+    const grouped = {};
+    list.forEach(x => { (grouped[x.browser] ||= []).push(x); });
+    if (!list.length) {
+      $('browserPrivacyList').innerHTML = '<div class="empty">Дополнительные данные браузеров не найдены.</div>';
+      return;
+    }
+    const allowed = !!appSettings?.cleanup_allowed_categories?.includes('Данные браузера');
+    $('browserPrivacyList').innerHTML = Object.entries(grouped).map(([browser, entries]) =>
+      `<div class="setting-card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><strong>${escapeHtml(browser)}</strong><span class="badge">Сессии и авторизация могут измениться</span></div>` +
+      entries.map(x => `<div class="browser-card" style="margin-top:8px"><div><div class="storage-name">${escapeHtml(x.category)}</div><div class="storage-meta">${escapeHtml(x.path)}</div></div><strong>${bytes(x.size)}</strong><button class="mini-btn" type="button" data-browser-clean="${escapeHtml(browser)}" data-browser-category="${escapeHtml(x.category)}" ${allowed ? '' : 'disabled'}>${allowed ? 'Очистить' : 'Включить в настройках'}</button></div>`).join('') +
+      `</div>`
+    ).join('');
+  }
+
+  async function scanBrowsers() {
+    $('browserScanBtn').disabled = true;
+    $('browserStatus').textContent = "Проверяем кэши и профильные данные…";
+    try {
+      renderBrowsers(await invoke("browser_caches"));
+      renderBrowserPrivacy(await invoke("browser_data_summary_cmd"));
+    }
+    catch (error) { $('browserStatus').textContent = "Ошибка: " + error; }
+    finally { $('browserScanBtn').disabled = false; }
+  }
+  $('browserScanBtn').addEventListener("click", scanBrowsers);
+
+  $('browserPrivacyList').addEventListener("click", async event => {
+    const btn = event.target.closest("[data-browser-clean]");
+    if (!btn || btn.disabled) return;
+    const browser = btn.dataset.browserClean;
+    const category = btn.dataset.browserCategory;
+    const ok = confirm(`Очистить «${category}» браузера ${browser}?\n\nЭто может завершить активные сессии, удалить локальные данные сайтов и потребовать повторной авторизации. Файлы сначала будут перемещены в карантин.`);
+    if (!ok) return;
+    btn.disabled = true;
+    try {
+      const report = await invoke("cleanup_browser_data", { browser, categories:[category], confirmed:true });
+      $('browserStatus').textContent = `В карантин перемещено ${report.deleted_items} файлов · ${bytes(report.deleted_bytes)}. Ошибок: ${report.failed_items}.`;
+      await renderQuarantine(); await renderActivity(); await scanBrowsers();
+    } catch (error) {
+      $('browserStatus').textContent = "Ошибка очистки данных браузера: " + error;
+      btn.disabled = false;
+    }
+  });
+
+  $('browserCleanBtn').addEventListener("click", async () => {
+    const ok = confirm("Переместить безопасные кэши Chrome и Edge в карантин? Браузеры лучше закрыть перед очисткой.");
+    if (!ok) return;
+    $('browserCleanBtn').disabled = true;
+    try {
+      const report = await invoke("cleanup_browser_caches");
+      $('browserStatus').textContent = "В карантин перемещено " + report.deleted_items + " файлов · " + bytes(report.deleted_bytes) + ". Ошибок: " + report.failed_items;
+      await renderQuarantine(); await renderActivity(); await scanBrowsers();
+    } catch (error) { $('browserStatus').textContent = "Ошибка очистки: " + error; }
+  });
+
+  $('recycleBinBtn').addEventListener("click", async () => {
+    const ok = confirm("Очистить корзину Windows? Это действие нельзя восстановить через карантин.");
+    if (!ok) return;
+    $('recycleBinBtn').disabled = true;
+    try { await invoke("empty_recycle_bin"); $('status').textContent = "Корзина очищена."; await renderActivity(); }
+    catch (error) { $('status').textContent = "Ошибка очистки корзины: " + error; }
+    finally { $('recycleBinBtn').disabled = false; }
+  });
+
+  $('smartCleanNowBtn').addEventListener("click", async () => {
+    const ok = confirm("Запустить Smart Clean? Будут обработаны только безопасные категории согласно настройкам.");
+    if (!ok) return;
+    $('smartCleanNowBtn').disabled = true;
+    $('status').textContent = "Smart Clean выполняется…";
+    try {
+      const report = await invoke("smart_clean_now");
+      $('status').textContent = "Smart Clean: в карантин " + report.deleted_items + " файлов · " + bytes(report.deleted_bytes) + ".";
+      await renderQuarantine(); await renderActivity();
+    } catch (error) { $('status').textContent = "Ошибка Smart Clean: " + error; }
+    finally { $('smartCleanNowBtn').disabled = false; }
+  });
+
+  function resetUpdateActions() {
+    $('installUpdateBtn').disabled = true;
+    $('openReleaseBtn').disabled = true;
+    $('openDownloadBtn').disabled = true;
+  }
+
+  async function checkUpdates() {
+    const url = $('updateManifestInput').value.trim();
+    resetUpdateActions();
+    latestUpdate = null;
+    if (!url) {
+      $('updateStatus').textContent = "Укажите HTTPS-адрес latest.json в настройках обновлений.";
+      return;
+    }
+    if (!/^https:\/\//i.test(url)) {
+      $('updateStatus').textContent = "Источник автоматических обновлений должен использовать HTTPS.";
+      return;
+    }
+    $('checkUpdateBtn').disabled = true;
+    $('updateStatus').textContent = "Проверяем последнюю версию…";
+    try {
+      const response = await fetch(url, {cache:"no-store"});
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const data = await response.json();
+      const current = await invoke("app_version");
+      const version = String(data.version || "").trim();
+      const downloadUrl = String(data.url || "").trim();
+      const chunkUrls = Array.isArray(data.chunks) ? data.chunks.map(String).filter(x => x.trim()) : [];
+      const sha256 = String(data.sha256 || "").trim();
+      const newer = versionGreater(version, current);
+      const hasSource = !!downloadUrl || chunkUrls.length > 0;
+      latestUpdate = data;
+      $('openReleaseBtn').disabled = !(data.release_page || downloadUrl || appSettings?.release_page_url);
+      $('openDownloadBtn').disabled = !downloadUrl;
+      $('installUpdateBtn').disabled = !(newer && hasSource && (!chunkUrls.length ? /^https:\/\//i.test(downloadUrl) : chunkUrls.every(x => /^https:\/\//i.test(x))) && /^[a-f0-9]{64}$/i.test(sha256));
+      if (newer) {
+        const integrity = /^[a-f0-9]{64}$/i.test(sha256)
+          ? "SHA-256 присутствует — можно установить автоматически."
+          : "Автоустановка недоступна: в манифесте нет корректного SHA-256.";
+        $('updateStatus').innerHTML =
+          "<strong>Доступно обновление " + escapeHtml(version || "неизвестной версии") + "</strong><br>" +
+          escapeHtml(data.notes || "Новая версия доступна.") + "<br>" +
+          "<span class=\"muted\">Текущая: " + escapeHtml(current) + " · " + escapeHtml(integrity) + "</span>";
+      } else {
+        $('updateStatus').textContent = "Установлена актуальная версия " + current + ".";
+      }
+    } catch (error) {
+      $('updateStatus').textContent = "Не удалось проверить обновления: " + error;
+      latestUpdate = null;
+      resetUpdateActions();
+    } finally {
+      $('checkUpdateBtn').disabled = false;
+    }
+  }
+
+  function versionParts(value) { return String(value).replace(/^v/i,"").split(".").map(x => Number(x) || 0); }
+  function versionGreater(a,b) {
+    const ap=versionParts(a), bp=versionParts(b);
+    for (let i=0;i<3;i++) { if ((ap[i]||0) !== (bp[i]||0)) return (ap[i]||0) > (bp[i]||0); }
+    return false;
+  }
+
+  $('checkUpdateBtn').addEventListener("click", checkUpdates);
+  $('installUpdateBtn').addEventListener("click", async () => {
+    const update = latestUpdate;
+    if (!update?.version || !update?.url || !update?.sha256) return;
+    if (!versionGreater(String(update.version), await invoke("app_version"))) return;
+    const ok = confirm(
+      "Установить PC Cleaner " + update.version + "?\n\n" +
+      "Приложение закроется, проверит SHA-256 скачанного EXE и автоматически перезапустится. " +
+      "При необходимости Windows покажет запрос прав администратора."
+    );
+    if (!ok) return;
+    $('installUpdateBtn').disabled = true;
+    $('checkUpdateBtn').disabled = true;
+    $('updateStatus').textContent = "Загружаем и проверяем обновление…";
+    try {
+      const chunkUrls = Array.isArray(update.chunks) ? update.chunks.map(String).filter(x => x.trim()) : [];
+      const message = await invoke("install_update", {
+        version: String(update.version),
+        url: update.url ? String(update.url) : null,
+        chunks: chunkUrls,
+        sha256: String(update.sha256)
+      });
+      $('updateStatus').textContent = message;
+    } catch (error) {
+      $('updateStatus').textContent = "Не удалось установить обновление: " + error;
+      $('installUpdateBtn').disabled = false;
+      $('checkUpdateBtn').disabled = false;
+    }
+  });
+  $('openDownloadBtn').addEventListener("click", () => { if (latestUpdate?.url) invoke("open_url",{url:latestUpdate.url}); });
+  $('openReleaseBtn').addEventListener("click", () => {
+    const url = latestUpdate?.release_page || latestUpdate?.url || appSettings?.release_page_url;
+    if (url) invoke("open_url",{url});
+  });
+
+  async function openPreview(path) {
+    try {
+      const src = await invoke("read_image_preview", { path });
+      $('previewTitle').textContent = path.split("\\").pop() || "Предпросмотр";
+      $('previewBody').innerHTML = src
+        ? '<img class="preview-image" src="' + src + '" alt="">'
+        : '<div class="empty">Для этого файла встроенный предпросмотр недоступен.</div><div class="storage-meta" style="margin-top:10px">' + escapeHtml(path) + '</div>';
+      $('previewModal').style.display = "grid";
+    } catch (error) {
+      $('previewBody').innerHTML = '<div class="danger-note">Ошибка предпросмотра: ' + escapeHtml(error) + '</div>';
+      $('previewModal').style.display = "grid";
+    }
+  }
+  $('duplicates').addEventListener("click", event => {
+    const preview = event.target.closest("[data-preview-path]");
+    if (preview) { openPreview(preview.dataset.previewPath); return; }
+    const open = event.target.closest("[data-open-path]");
+    if (open) invoke("open_path",{path:open.dataset.openPath});
+  });
+  $('closePreviewBtn').addEventListener("click", () => { $('previewModal').style.display = "none"; });
+  $('previewModal').addEventListener("click", event => { if (event.target === $('previewModal')) $('previewModal').style.display = "none"; });
+
+  ["storageNavBtn","browserNavBtn","settingsNavBtn","updatesNavBtn"].forEach(id => {
+    $(id).addEventListener("click", () => {
+      const map = {storageNavBtn:"storageSection", browserNavBtn:"browserSection", settingsNavBtn:"settingsSection", updatesNavBtn:"updatesSection"};
+      const target = $(map[id]);
+      if (!target) return;
+      const scroller = document.scrollingElement || document.documentElement || document.body;
+      const currentTop = scroller.scrollTop || window.pageYOffset || 0;
+      const top = target.getBoundingClientRect().top + currentTop;
+      const nextTop = Math.max(0, Math.floor(top - 12));
+      scroller.scrollTop = nextTop;
+      document.documentElement.scrollTop = nextTop;
+      document.body.scrollTop = nextTop;
+      window.scrollTo(0, nextTop);
+      location.hash = map[id];
+    });
+  });
+
+  initProgressListener();
+  loadSettings().then(() => setTimeout(checkUpdates, 700));
+  const app_version_ready = invoke("app_version").then(v => { $('updateStatus').textContent = "Текущая версия PC Cleaner " + v + "."; }).catch(()=>{});
+  renderQuarantine();
+  renderActivity();
+</script>
+</body>
+</html>
