@@ -2213,7 +2213,7 @@ dependencies = [
 
 [[package]]
 name = "pc-cleaner"
-version = "0.3.6"
+version = "0.3.8"
 dependencies = [
  "base64 0.22.1",
  "blake3",

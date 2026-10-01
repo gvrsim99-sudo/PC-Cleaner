@@ -56,6 +56,11 @@
     .back-top { position:fixed; right:22px; bottom:22px; z-index:45; width:46px; height:46px; padding:0; border-radius:50%; background:#e7f1ff; color:#091018; box-shadow:0 10px 30px rgba(0,0,0,.35); opacity:0; pointer-events:none; transform:translateY(8px); transition:.2s ease; }
     .back-top.visible { opacity:1; pointer-events:auto; transform:translateY(0); }
     .clean-summary { margin-top:12px; padding:11px 13px; background:#0e1712; border:1px solid rgba(130,220,150,.14); border-radius:12px; color:#b8d8c0; font-size:12px; line-height:1.45; }
+    .drive-card { padding:16px; background:#121a23; border:1px solid rgba(255,255,255,.06); border-radius:15px; margin-bottom:10px; }
+    .drive-card-main { display:flex; justify-content:space-between; gap:14px; align-items:center; flex-wrap:wrap; }
+    .drive-title { font-size:18px; font-weight:800; }
+    .drive-meta { color:#91a0b2; font-size:13px; margin-top:4px; }
+    .drive-pill { display:inline-flex; padding:5px 8px; border-radius:999px; background:#0e141b; color:#b9c5d1; font-size:11px; }
     .progress-wrap { display:none; margin:8px 0 12px; }
     .progress-top { display:flex; justify-content:space-between; gap:12px; color:#b9c5d1; font-size:12px; margin-bottom:7px; }
     .progress-bar { height:8px; background:#18212b; border-radius:99px; overflow:hidden; }
@@ -89,7 +94,7 @@
 <div class="app">
   <div class="top">
     <div class="brand"><div class="logo">PC</div><div><h1>PC Cleaner</h1><div class="muted">Безопасная очистка и глубокий анализ</div></div></div>
-    <div class="nav-actions"><a class="nav-btn home" id="homeNavBtn" href="#homeSection">Главная</a><a class="nav-btn" href="#resultsSection">Результаты</a><a class="nav-btn" id="storageNavBtn" href="#storageSection">Хранилище</a><a class="nav-btn" id="browserNavBtn" href="#browserSection">Браузеры</a><a class="nav-btn" id="largestNavBtn" href="#largestSection">Крупные файлы</a><a class="nav-btn" id="duplicatesNavBtn" href="#duplicatesSection">Дубликаты</a><a class="nav-btn" id="settingsNavBtn" href="#settingsSection">Настройки</a><a class="nav-btn" id="updatesNavBtn" href="#updatesSection">Обновления</a></div>
+    <div class="nav-actions"><a class="nav-btn home" id="homeNavBtn" href="#homeSection">Главная</a><a class="nav-btn" href="#resultsSection">Результаты</a><a class="nav-btn" id="storageNavBtn" href="#storageSection">Хранилище</a><a class="nav-btn" id="drivesNavBtn" href="#drivesSection">Накопители</a><a class="nav-btn" id="browserNavBtn" href="#browserSection">Браузеры</a><a class="nav-btn" id="largestNavBtn" href="#largestSection">Крупные файлы</a><a class="nav-btn" id="duplicatesNavBtn" href="#duplicatesSection">Дубликаты</a><a class="nav-btn" id="settingsNavBtn" href="#settingsSection">Настройки</a><a class="nav-btn" id="updatesNavBtn" href="#updatesSection">Обновления</a></div>
   </div>
 
   <div class="hero" id="homeSection">
@@ -104,9 +109,9 @@
       <div class="actions">
         <button class="primary" id="scanBtn">Глубокое сканирование</button>
         <button class="ghost" id="cancelScanBtn" disabled>Отмена</button>
-        <button class="primary" id="cleanBtn" disabled>Очистить безопасный мусор</button>
+        <button class="primary" id="cleanBtn" disabled>Переместить безопасный мусор в Корзину</button>
       </div>
-      <div class="clean-summary" id="cleanSummary">После сканирования PC Cleaner сам выберет безопасный мусор и лишние копии. Личные файлы, свежие данные и объекты, требующие проверки, автоматически не удаляются.</div>
+      <div class="clean-summary" id="cleanSummary">После сканирования PC Cleaner сам выберет безопасный мусор и лишние копии. Очистка переносит их в Корзину Windows; личные файлы, свежие данные и объекты «требует проверки» автоматически не выбираются.</div>
     </section>
 
     <section class="panel">
@@ -141,7 +146,7 @@
     </div>
     <div id="browserList" style="margin-top:14px"><div class="empty">Данные браузеров ещё не проверялись.</div></div>
     <div style="margin-top:16px"><div class="label">Дополнительные данные</div><div id="browserPrivacyList" style="margin-top:10px"><div class="empty">После проверки покажем cookies, историю, метаданные загрузок и данные сайтов.</div></div></div>
-    <div class="danger-note" style="margin-top:10px">Cookies, история, метаданные загрузок и данные сайтов могут завершить активные сессии и потребуют повторного входа. Их очистка доступна отдельно, только после явного предупреждения и перемещения в карантин.</div>
+    <div class="danger-note" style="margin-top:10px">Cookies, история, метаданные загрузок и данные сайтов могут завершить активные сессии и потребовать повторного входа. Их очистка доступна отдельно и только после явного предупреждения.</div>
   </section>
 
   <section class="panel section" id="storageSection">
@@ -151,6 +156,14 @@
     </div>
     <div class="crumb" id="storageBreadcrumb">C:\</div>
     <div id="storageList"><div class="empty">Запустите анализ хранилища.</div></div>
+  </section>
+
+  <section class="panel section" id="drivesSection">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <div><h2 style="margin-bottom:4px">Накопители</h2><div class="muted" id="drivesStatus">Определяем подключённые локальные и внешние накопители.</div></div>
+      <div class="actions"><button class="ghost" id="refreshDrivesBtn">Обновить</button><button class="primary" id="scanDrivesBtn">Сканировать все накопители</button></div>
+    </div>
+    <div id="drivesList" style="margin-top:14px"><div class="empty">Загрузка списка накопителей…</div></div>
   </section>
 
   <section class="panel section" id="largestSection">
@@ -239,9 +252,9 @@
         <div class="setting-row"><label><input type="checkbox" id="allowShader"> Графический кэш</label></div>
         <div class="setting-row"><label><input type="checkbox" id="allowThumbs"> Кэш миниатюр</label></div>
         <div class="setting-row"><label><input type="checkbox" id="allowAppCache"> Кэш приложений</label></div>
+        <div class="setting-row"><label><input type="checkbox" id="allowDriveCache"> Кэш внешних накопителей</label></div>
         <div class="setting-row"><label><input type="checkbox" id="allowDuplicates"> Дубликаты</label></div>
         <div class="setting-row"><label><input type="checkbox" id="allowBrowserData"> Cookies / история / данные сайтов (требует предупреждения)</label></div>
-        <div class="setting-row" style="display:none"><div><div>Максимум карантина</div><div class="muted">Устаревшая настройка для старых восстановимых очисток</div></div><input id="setQuarantineMaxGb" type="number" min="1" max="1000" style="width:100px" /></div>
         <div class="setting-row" style="display:none"><div><div>Срок хранения карантина</div><div class="muted">Для старых восстановимых очисток</div></div><input id="setQuarantineRetentionDays" type="number" min="1" max="3650" style="width:100px" /></div>
         <div class="setting-row"><div><div>Лимит Smart Clean</div><div class="muted">Максимум данных за одну автооперацию</div></div><input id="setSmartMaxGb" type="number" min="1" max="100" style="width:100px" /></div>
       </div>
@@ -268,6 +281,7 @@
     throw new Error('Tauri global API is unavailable');
   }
   let lastScan = null;
+  let mountedDrives = [];
   const selectedIds = new Set();
   const selectedDuplicatePaths = new Set();
   const selectedQuarantineIds = new Set();
@@ -316,6 +330,43 @@
     return new Date(value * 1000).toLocaleString('ru-RU');
   }
 
+  function renderDrives() {
+    if (!mountedDrives.length) {
+      $('drivesList').innerHTML = '<div class="empty">Подключённых локальных накопителей не найдено.</div>';
+      $('drivesStatus').textContent = 'Накопители не обнаружены.';
+      return;
+    }
+    const externalCount = mountedDrives.filter(d => !d.is_system).length;
+    $('drivesStatus').textContent = externalCount
+      ? `Найдено ${mountedDrives.length} накопителей · внешних/дополнительных: ${externalCount}. Глубокое сканирование проверяет их безопасные Temp/Cache и дубликаты.`
+      : `Найден системный накопитель ${mountedDrives[0].root}.`;
+    $('drivesList').innerHTML = mountedDrives.map(d => {
+      const used = Number(d.used_percent || 0).toFixed(0);
+      return `<div class="drive-card">
+        <div class="drive-card-main">
+          <div>
+            <div class="drive-title">${escapeHtml(d.root)} <span class="drive-pill">${escapeHtml(d.kind)}</span></div>
+            <div class="drive-meta">${bytes(d.free_bytes)} свободно из ${bytes(d.total_bytes)} · занято ${used}%</div>
+          </div>
+          <div class="actions">
+            <button class="ghost" type="button" data-drive-storage="${escapeHtml(d.root)}">Читать хранилище</button>
+            ${d.is_system ? '' : '<span class="badge safe">Входит в глубокое сканирование</span>'}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function loadDrives() {
+    try {
+      mountedDrives = await invoke('mounted_drives');
+      renderDrives();
+    } catch (error) {
+      $('drivesStatus').textContent = 'Не удалось определить накопители: ' + error;
+      $('drivesList').innerHTML = '<div class="danger-note">Ошибка определения накопителей.</div>';
+    }
+  }
+
   async function renderActivity() {
     try {
       const items = await invoke('list_activity');
@@ -340,10 +391,10 @@
         if (!validIds.has(id)) selectedQuarantineIds.delete(id);
       }
       const totalBytes = items.reduce((sum, item) => sum + item.size, 0);
-      const maxBytes = Number(appSettings?.quarantine_max_gb || 10) * 1024 * 1024 * 1024;
+
       $('quarantineStatus').textContent = items.length
-        ? `${items.length.toLocaleString('ru-RU')} файлов · ${bytes(totalBytes)} / ${bytes(maxBytes)} · хранение ${appSettings?.quarantine_retention_days || 30} дн.`
-        : `Карантин пуст · лимит ${bytes(maxBytes)} · хранение ${appSettings?.quarantine_retention_days || 30} дн.`;
+        ? `${items.length.toLocaleString('ru-RU')} файлов · ${bytes(totalBytes)} · старые файлы`
+        : `Карантин пуст. Новые очистки идут в Корзину Windows.`;
       $('restoreBtn').disabled = selectedQuarantineIds.size === 0;
       $('selectAllQuarantineBtn').disabled = items.length === 0;
       $('clearQuarantineSelectionBtn').disabled = selectedQuarantineIds.size === 0;
@@ -492,6 +543,26 @@
   }
 
   $('categoryFilter').addEventListener('change', renderItems);
+
+  $('refreshDrivesBtn').addEventListener('click', loadDrives);
+  $('scanDrivesBtn').addEventListener('click', () => {
+    $('homeSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => $('scanBtn').click(), 250);
+  });
+  $('drivesList').addEventListener('click', async event => {
+    const btn = event.target.closest('[data-drive-storage]');
+    if (!btn) return;
+    const path = btn.dataset.driveStorage;
+    $('storageSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('storageStatus').textContent = 'Анализируем ' + path + '…';
+    try {
+      storagePathStack = [path];
+      const rows = await invoke('analyze_storage', { path });
+      renderStorage(rows);
+    } catch (error) {
+      $('storageStatus').textContent = 'Ошибка анализа накопителя: ' + error;
+    }
+  });
 
   $('itemsList').addEventListener('change', (event) => {
     const checkbox = event.target.closest('input[data-item-id]');
@@ -665,16 +736,16 @@
       const p = String(item.path || '').toLowerCase().replaceAll('/', '\\');
       return systemRoots.some(root => p.includes(root));
     }).length;
-    const ok = confirm(`Безвозвратно удалить ${selected.length.toLocaleString('ru-RU')} безопасных файлов и лишних копий, ${bytes(selectedBytes)}?\nСистемных файлов: ${systemCount}.\nНедавних файлов: 0 (защита недавних файлов включена).\n\nЛичные файлы и объекты, требующие проверки, автоматически не удаляются.`);
+    const ok = confirm(`Переместить в Корзину Windows ${selected.length.toLocaleString('ru-RU')} безопасных файлов и лишних копий, ${bytes(selectedBytes)}?\nСистемных файлов: ${systemCount}.\nНедавних файлов: 0 (защита недавних файлов включена).\n\nЛичные файлы и объекты, требующие проверки, автоматически не удаляются.`);
     if (!ok) return;
     $('cleanBtn').disabled = true;
-    $('status').textContent = `Удаляем ${selected.length.toLocaleString('ru-RU')} безопасных файлов без карантина…`;
+    $('status').textContent = `Перемещаем ${selected.length.toLocaleString('ru-RU')} безопасных файлов в Корзину Windows…`;
     try {
       const report = await invoke('cleanup', { items: selected });
       selected.forEach(x => selectedIds.delete(x.id));
-      $('status').textContent = `Удалено безвозвратно ${report.deleted_items.toLocaleString('ru-RU')} файлов · освобождено ${bytes(report.deleted_bytes)}. Ошибок: ${report.failed_items}.`;
+      $('status').textContent = `В Корзину Windows перемещено ${report.deleted_items.toLocaleString('ru-RU')} файлов · освобождено ${bytes(report.deleted_bytes)}. Ошибок: ${report.failed_items}.`;
       $('cleanSummary').textContent = report.deleted_items
-        ? `Очистка завершена: удалено ${report.deleted_items.toLocaleString('ru-RU')} файлов · ${bytes(report.deleted_bytes)} освобождено.`
+        ? `Очистка завершена: в Корзину Windows перемещено ${report.deleted_items.toLocaleString('ru-RU')} файлов · ${bytes(report.deleted_bytes)} освобождено.`
         : 'Безопасные файлы не были удалены.';
       await renderActivity();
       if (report.deleted_items) {
@@ -697,8 +768,8 @@
       scan_recycle_bin: true, scan_large_files: true, scan_duplicates: true,
       scan_thumbnails: true, scan_app_caches: true, scan_old_installers: true,
       recent_protection_hours: 24, excluded_paths: [],
-      cleanup_allowed_categories: ["Временные файлы","Системные временные файлы","Кэш браузера","Дампы сбоев","Отчёты сбоев Windows","Графический кэш","Кэш приложений","Кэш миниатюр","Дубликаты"],
-      quarantine_max_gb: 10, quarantine_retention_days: 30,
+      cleanup_allowed_categories: ["Временные файлы","Системные временные файлы","Кэш браузера","Дампы сбоев","Отчёты сбоев Windows","Графический кэш","Кэш приложений","Кэш миниатюр","Кэш накопителя","Дубликаты"],
+      quarantine_retention_days: 30,
       auto_start: false, minimize_to_tray: true, smart_clean_enabled: false, smart_clean_time: "03:00",
       smart_clean_days: ["SUN"], smart_clean_include_duplicates: false, smart_clean_max_gb: 5,
       update_manifest_url: "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest/download/latest.json", release_page_url: "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest"
@@ -722,12 +793,11 @@
     const allowedMap = {
       allowTemp:"Временные файлы", allowSystemTemp:"Системные временные файлы",
       allowBrowserCache:"Кэш браузера", allowCrash:"Дампы сбоев", allowShader:"Графический кэш",
-      allowThumbs:"Кэш миниатюр", allowAppCache:"Кэш приложений", allowDuplicates:"Дубликаты",
-      allowBrowserData:"Данные браузера"
+      allowThumbs:"Кэш миниатюр", allowAppCache:"Кэш приложений", allowDriveCache:"Кэш накопителя",
+      allowDuplicates:"Дубликаты", allowBrowserData:"Данные браузера"
     };
     Object.keys(allowedMap).forEach(id => { const el=$(id); if (el) el.checked = allowed.has(allowedMap[id]); });
     $('setRecentHours').value = appSettings.recent_protection_hours || 24;
-    $('setQuarantineMaxGb').value = appSettings.quarantine_max_gb || 10;
     $('setQuarantineRetentionDays').value = appSettings.quarantine_retention_days || 30;
     $('setSmartMaxGb').value = appSettings.smart_clean_max_gb || 5;
     $('setSmartTime').value = appSettings.smart_clean_time || "03:00";
@@ -756,10 +826,9 @@
     const allowed = {
       allowTemp:"Временные файлы", allowSystemTemp:"Системные временные файлы", allowBrowserCache:"Кэш браузера",
       allowCrash:"Дампы сбоев", allowShader:"Графический кэш", allowThumbs:"Кэш миниатюр",
-      allowAppCache:"Кэш приложений", allowDuplicates:"Дубликаты", allowBrowserData:"Данные браузера"
+      allowAppCache:"Кэш приложений", allowDriveCache:"Кэш накопителя", allowDuplicates:"Дубликаты", allowBrowserData:"Данные браузера"
     };
     s.cleanup_allowed_categories = Object.keys(allowed).filter(id => $(id).checked).map(id => allowed[id]);
-    s.quarantine_max_gb = Number($('setQuarantineMaxGb').value) || 10;
     s.quarantine_retention_days = Number($('setQuarantineRetentionDays').value) || 30;
     s.smart_clean_max_gb = Number($('setSmartMaxGb').value) || 5;
     s.auto_start = $('setAutostart').checked;
@@ -898,12 +967,12 @@
     if (!btn || btn.disabled) return;
     const browser = btn.dataset.browserClean;
     const category = btn.dataset.browserCategory;
-    const ok = confirm(`Очистить «${category}» браузера ${browser}?\n\nЭто может завершить активные сессии, удалить локальные данные сайтов и потребовать повторной авторизации. Файлы сначала будут перемещены в карантин.`);
+    const ok = confirm(`Очистить «${category}» браузера ${browser}?\n\nЭто может завершить активные сессии, удалить локальные данные сайтов и потребовать повторной авторизации. Данные будут перемещены в Корзину Windows.`);
     if (!ok) return;
     btn.disabled = true;
     try {
       const report = await invoke("cleanup_browser_data", { browser, categories:[category], confirmed:true });
-      $('browserStatus').textContent = `В карантин перемещено ${report.deleted_items} файлов · ${bytes(report.deleted_bytes)}. Ошибок: ${report.failed_items}.`;
+      $('browserStatus').textContent = `В Корзину Windows перемещено ${report.deleted_items} файлов · ${bytes(report.deleted_bytes)}. Ошибок: ${report.failed_items}.`;
       await renderQuarantine(); await renderActivity(); await scanBrowsers();
     } catch (error) {
       $('browserStatus').textContent = "Ошибка очистки данных браузера: " + error;
@@ -912,18 +981,18 @@
   });
 
   $('browserCleanBtn').addEventListener("click", async () => {
-    const ok = confirm("Безвозвратно удалить безопасные кэши Chrome и Edge? Браузеры лучше закрыть перед очисткой.");
+    const ok = confirm("Переместить безопасные кэши Chrome и Edge в Корзину Windows? Браузеры лучше закрыть перед очисткой.");
     if (!ok) return;
     $('browserCleanBtn').disabled = true;
     try {
       const report = await invoke("cleanup_browser_caches");
-      $('browserStatus').textContent = "Удалено " + report.deleted_items + " файлов · освобождено " + bytes(report.deleted_bytes) + ". Ошибок: " + report.failed_items;
+      $('browserStatus').textContent = "В Корзину Windows перемещено " + report.deleted_items + " файлов · " + bytes(report.deleted_bytes) + ". Ошибок: " + report.failed_items;
       await renderQuarantine(); await renderActivity(); await scanBrowsers();
     } catch (error) { $('browserStatus').textContent = "Ошибка очистки: " + error; }
   });
 
   $('recycleBinBtn').addEventListener("click", async () => {
-    const ok = confirm("Очистить корзину Windows? Это действие нельзя восстановить через карантин.");
+    const ok = confirm("Окончательно очистить Корзину Windows на всех локальных накопителях? После этого файлы восстановить будет нельзя.");
     if (!ok) return;
     $('recycleBinBtn').disabled = true;
     try { await invoke("empty_recycle_bin"); $('status').textContent = "Корзина очищена."; await renderActivity(); }
@@ -1068,6 +1137,7 @@
   const app_version_ready = invoke("app_version").then(v => { $('updateStatus').textContent = "Текущая версия PC Cleaner " + v + "."; }).catch(()=>{});
   renderQuarantine();
   renderActivity();
+  loadDrives();
 </script>
 </body>
 </html>

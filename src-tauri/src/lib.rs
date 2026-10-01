@@ -19,7 +19,7 @@ use walkdir::WalkDir;
 
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
-const APP_VERSION: &str = "0.3.6";
+const APP_VERSION: &str = "0.3.8";
 const UPDATE_MANIFEST_URL: &str =
     "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest/download/latest.json";
 const RELEASE_PAGE_URL: &str = "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest";
@@ -141,6 +141,15 @@ fn read_settings() -> CleanerSettings {
     {
         settings.release_page_url = RELEASE_PAGE_URL.into();
     }
+    if !settings
+        .cleanup_allowed_categories
+        .iter()
+        .any(|category| category == "Кэш накопителя")
+    {
+        settings
+            .cleanup_allowed_categories
+            .push("Кэш накопителя".into());
+    }
     settings
 }
 
@@ -177,7 +186,6 @@ pub struct CleanerSettings {
     pub recent_protection_hours: u64,
     pub excluded_paths: Vec<String>,
     pub cleanup_allowed_categories: Vec<String>,
-    pub quarantine_max_gb: u64,
     pub quarantine_retention_days: u64,
     pub auto_start: bool,
     pub minimize_to_tray: bool,
@@ -216,9 +224,9 @@ impl Default for CleanerSettings {
                 "Графический кэш".into(),
                 "Кэш приложений".into(),
                 "Кэш миниатюр".into(),
+                "Кэш накопителя".into(),
                 "Дубликаты".into(),
             ],
-            quarantine_max_gb: 10,
             quarantine_retention_days: 30,
             auto_start: false,
             minimize_to_tray: true,
@@ -446,13 +454,29 @@ fn analysis_roots() -> Vec<PathBuf> {
             }
         }
     }
+    for drive in mounted_drives_sync().into_iter().filter(|d| !d.is_system) {
+        let root = PathBuf::from(&drive.root);
+        if root.is_dir() && seen.insert(normalize_path(&root)) {
+            roots.push(root);
+        }
+    }
     roots
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MountedDriveInfo {
+    pub root: String,
+    pub kind: String,
+    pub is_system: bool,
+    pub total_bytes: u64,
+    pub free_bytes: u64,
+    pub used_percent: f64,
+}
+
 #[cfg(windows)]
-fn current_drive_info() -> DriveInfo {
+fn drive_info_for_root(root_path: &str) -> DriveInfo {
     use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
-    let root: Vec<u16> = std::ffi::OsStr::new(r#"C:\"#)
+    let root: Vec<u16> = std::ffi::OsStr::new(root_path)
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
@@ -472,9 +496,82 @@ fn current_drive_info() -> DriveInfo {
     }
 }
 
+#[cfg(windows)]
+fn mounted_drives_sync() -> Vec<MountedDriveInfo> {
+    use windows_sys::Win32::Storage::FileSystem::{GetDriveTypeW, GetLogicalDrives};
+    let mask = unsafe { GetLogicalDrives() };
+    if mask == 0 {
+        return Vec::new();
+    }
+    let system_root = format!(
+        "{}:\\",
+        env::var("SystemDrive")
+            .unwrap_or_else(|_| "C".into())
+            .trim_end_matches(':')
+    );
+    let mut drives = Vec::new();
+    for index in 0..26u32 {
+        if mask & (1u32 << index) == 0 {
+            continue;
+        }
+        let letter = (b'A' + index as u8) as char;
+        let root = format!("{}:\\", letter);
+        let wide: Vec<u16> = std::ffi::OsStr::new(&root)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let drive_type = unsafe { GetDriveTypeW(wide.as_ptr()) };
+        if drive_type != 2 && drive_type != 3 {
+            continue;
+        }
+        let info = drive_info_for_root(&root);
+        if info.total_bytes == 0 {
+            continue;
+        }
+        let is_system = root.eq_ignore_ascii_case(&system_root);
+        drives.push(MountedDriveInfo {
+            root,
+            kind: if drive_type == 2 {
+                "Съёмный накопитель".into()
+            } else if is_system {
+                "Системный диск".into()
+            } else {
+                "Дополнительный диск".into()
+            },
+            is_system,
+            total_bytes: info.total_bytes,
+            free_bytes: info.free_bytes,
+            used_percent: info.used_percent,
+        });
+    }
+    drives
+}
+
+#[cfg(not(windows))]
+fn mounted_drives_sync() -> Vec<MountedDriveInfo> {
+    Vec::new()
+}
+
+#[cfg(windows)]
+fn current_drive_info() -> DriveInfo {
+    drive_info_for_root(&format!(
+        "{}:\\",
+        env::var("SystemDrive")
+            .unwrap_or_else(|_| "C".into())
+            .trim_end_matches(':')
+    ))
+}
+
 #[cfg(not(windows))]
 fn current_drive_info() -> DriveInfo {
     DriveInfo::default()
+}
+
+#[tauri::command]
+async fn mounted_drives() -> Result<Vec<MountedDriveInfo>, String> {
+    tauri::async_runtime::spawn_blocking(mounted_drives_sync)
+        .await
+        .map_err(|err| format!("Определение накопителей завершилось с ошибкой: {err}"))
 }
 
 fn add_item(summary: &mut ScanSummary, item: CleanupItem) {
@@ -715,6 +812,22 @@ fn configured_junk_roots(
             }
         }
     }
+    for drive in mounted_drives_sync().into_iter().filter(|d| !d.is_system) {
+        let root = PathBuf::from(&drive.root);
+        for (relative, category, reason) in [
+            ("Temp", "Временные файлы", "Внешний накопитель: Temp"),
+            ("tmp", "Временные файлы", "Внешний накопитель: tmp"),
+            ("Cache", "Кэш накопителя", "Внешний накопитель: Cache"),
+            ("Caches", "Кэш накопителя", "Внешний накопитель: Caches"),
+            (".cache", "Кэш накопителя", "Внешний накопитель: .cache"),
+        ] {
+            let path = root.join(relative);
+            if path.exists() && path.is_dir() {
+                roots.push((path, category, true, reason));
+            }
+        }
+    }
+
     let mut unique = Vec::with_capacity(roots.len());
     let mut seen = HashSet::new();
     for root in roots {
@@ -1034,7 +1147,117 @@ fn scan_duplicates_configured(
 }
 
 #[cfg(windows)]
-fn recycle_bin_info() -> Option<(u64, u64)> {
+fn send_to_recycle_bin(path: &Path) -> Result<(), String> {
+    #[repr(C)]
+    struct ShFileOp {
+        hwnd: *mut std::ffi::c_void,
+        w_func: u32,
+        p_from: *const u16,
+        p_to: *const u16,
+        flags: u16,
+        any_aborted: i32,
+        name_mappings: *mut std::ffi::c_void,
+        progress_title: *const u16,
+    }
+    #[link(name = "shell32")]
+    unsafe extern "system" {
+        fn SHFileOperationW(op: *mut ShFileOp) -> i32;
+    }
+    let from: Vec<u16> = path.as_os_str().encode_wide().chain([0, 0]).collect();
+    let mut op = ShFileOp {
+        hwnd: std::ptr::null_mut(),
+        w_func: 3,
+        p_from: from.as_ptr(),
+        p_to: std::ptr::null(),
+        flags: 0x0040 | 0x0010 | 0x0004 | 0x0400,
+        any_aborted: 0,
+        name_mappings: std::ptr::null_mut(),
+        progress_title: std::ptr::null(),
+    };
+    let code = unsafe { SHFileOperationW(&mut op) };
+    if code == 0 && op.any_aborted == 0 {
+        Ok(())
+    } else {
+        Err(format!(
+            "Windows не смогла отправить файл в Корзину: 0x{code:08X}"
+        ))
+    }
+}
+
+#[cfg(not(windows))]
+fn send_to_recycle_bin(_path: &Path) -> Result<(), String> {
+    Err("Корзина доступна только в Windows".into())
+}
+
+#[cfg(windows)]
+fn escape_ps_single(value: &str) -> String {
+    value.replace("'", "''")
+}
+
+#[cfg(windows)]
+fn recycle_files_with_admin(paths: &[PathBuf]) -> Result<(usize, Vec<String>), String> {
+    if paths.is_empty() {
+        return Ok((0, Vec::new()));
+    }
+    let stamp = format!(
+        "{}-{}",
+        std::process::id(),
+        blake3::hash(paths[0].to_string_lossy().as_bytes()).to_hex()
+    );
+    let list_path = env::temp_dir().join(format!("pc-cleaner-admin-{stamp}.txt"));
+    let content = paths
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(&list_path, content)
+        .map_err(|e| format!("Не удалось подготовить запрос прав: {e}"))?;
+    let script = format!(
+        "Add-Type -AssemblyName Microsoft.VisualBasic; $failed=@(); Get-Content -LiteralPath '{}' -Encoding UTF8 | ForEach-Object {{ $p=$_.Trim(); if(!$p){{return}}; try {{ [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($p,[Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,[Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin) }} catch {{ $failed += ($p + ' :: ' + $_.Exception.Message) }} }}; if($failed.Count -gt 0){{ $failed | Set-Content -LiteralPath '{}.failed' -Encoding UTF8; exit 1 }}; exit 0",
+        escape_ps_single(&list_path.to_string_lossy()),
+        escape_ps_single(&list_path.to_string_lossy())
+    );
+    let encoded = base64::engine::general_purpose::STANDARD.encode(
+        script
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect::<Vec<_>>(),
+    );
+    let outer = format!(
+        "$p=Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -PassThru -ArgumentList '-NoProfile','-EncodedCommand','{}'; exit $p.ExitCode",
+        encoded
+    );
+    let status = Command::new("powershell.exe")
+        .args(["-NoProfile", "-Command", &outer])
+        .status()
+        .map_err(|e| format!("Не удалось запросить права администратора: {e}"))?;
+    let failed_path = list_path.with_extension("txt.failed");
+    let result = if status.success() {
+        Ok((paths.len(), Vec::new()))
+    } else if failed_path.exists() {
+        let details = fs::read_to_string(&failed_path).unwrap_or_default();
+        let failures = details
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let failed_count = failures.len();
+        Ok((paths.len().saturating_sub(failed_count), failures))
+    } else {
+        Err("Операция с правами администратора отменена или завершилась с ошибкой.".into())
+    };
+    let _ = fs::remove_file(&list_path);
+    let _ = fs::remove_file(&failed_path);
+    result
+}
+
+#[cfg(not(windows))]
+fn recycle_files_with_admin(_paths: &[PathBuf]) -> Result<(usize, Vec<String>), String> {
+    Err("Повышение прав доступно только в Windows".into())
+}
+
+#[cfg(windows)]
+fn recycle_bin_info(root_path: &str) -> Option<(u64, u64)> {
     #[repr(C)]
     struct ShQueryRbInfo {
         cb_size: u32,
@@ -1045,7 +1268,7 @@ fn recycle_bin_info() -> Option<(u64, u64)> {
     unsafe extern "system" {
         fn SHQueryRecycleBinW(root: *const u16, info: *mut ShQueryRbInfo) -> i32;
     }
-    let root: Vec<u16> = std::ffi::OsStr::new(r#"C:\"#)
+    let root: Vec<u16> = std::ffi::OsStr::new(root_path)
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
@@ -1066,7 +1289,7 @@ fn recycle_bin_info() -> Option<(u64, u64)> {
 }
 
 #[cfg(not(windows))]
-fn recycle_bin_info() -> Option<(u64, u64)> {
+fn recycle_bin_info(_root_path: &str) -> Option<(u64, u64)> {
     None
 }
 
@@ -1074,11 +1297,19 @@ fn scan_recycle_bin(summary: &mut ScanSummary, settings: &CleanerSettings) {
     if !settings.scan_recycle_bin {
         return;
     }
-    if let Some((size, count)) = recycle_bin_info() {
-        if size > 0 {
-            summary.total_bytes = summary.total_bytes.saturating_add(size);
-            summary.total_items += count as usize;
-            *summary.by_category.entry("Корзина".into()).or_default() += size;
+    for drive in mounted_drives_sync() {
+        if let Some((size, count)) = recycle_bin_info(&drive.root) {
+            if size > 0 {
+                summary.total_bytes = summary.total_bytes.saturating_add(size);
+                summary.total_items += count as usize;
+                *summary
+                    .by_category
+                    .entry(format!(
+                        "Корзина {}",
+                        drive.root.trim_end_matches(['\\', '/'])
+                    ))
+                    .or_default() += size;
+            }
         }
     }
 }
@@ -1167,7 +1398,6 @@ fn get_settings() -> CleanerSettings {
 fn save_settings(settings: CleanerSettings) -> Result<CleanerSettings, String> {
     let mut normalized = settings;
     normalized.recent_protection_hours = normalized.recent_protection_hours.clamp(1, 168);
-    normalized.quarantine_max_gb = normalized.quarantine_max_gb.clamp(1, 1000);
     normalized.quarantine_retention_days = normalized.quarantine_retention_days.clamp(1, 3650);
     normalized.smart_clean_max_gb = normalized.smart_clean_max_gb.clamp(1, 100);
     normalized.excluded_paths = normalized
@@ -1707,11 +1937,12 @@ async fn analyze_storage(
     SCAN_CANCELLED.store(false, Ordering::Relaxed);
     let target = path.unwrap_or_else(|| String::from(r#"C:\"#));
     let target_path = PathBuf::from(&target);
-    if !target_path.is_dir()
-        || normalize_path(&target_path).len() < 3
-        || !normalize_path(&target_path).starts_with(r#"c:\"#)
-    {
-        return Err("Для анализа доступен только существующий каталог на диске C:".into());
+    let normalized = normalize_path(&target_path);
+    let local_drive_path = normalized.len() >= 3
+        && normalized.as_bytes().get(1).copied() == Some(b':')
+        && normalized.as_bytes().get(2).copied() == Some(b'\\');
+    if !target_path.is_dir() || !local_drive_path {
+        return Err("Для анализа доступен только существующий каталог локального диска.".into());
     }
     tauri::async_runtime::spawn_blocking(move || Ok(storage_scan_dir(&target_path, &app)))
         .await
@@ -2044,11 +2275,7 @@ fn empty_recycle_bin_sync() -> Result<(), String> {
     unsafe extern "system" {
         fn SHEmptyRecycleBinW(hwnd: *mut std::ffi::c_void, root: *const u16, flags: u32) -> i32;
     }
-    let root: Vec<u16> = std::ffi::OsStr::new(r#"C:\"#)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let hr = unsafe { SHEmptyRecycleBinW(ptr::null_mut(), root.as_ptr(), 1 | 2 | 4) };
+    let hr = unsafe { SHEmptyRecycleBinW(ptr::null_mut(), std::ptr::null(), 1 | 2 | 4) };
     if hr == 0 {
         Ok(())
     } else {
@@ -2064,7 +2291,7 @@ fn empty_recycle_bin_sync() -> Result<(), String> {
 #[tauri::command]
 fn empty_recycle_bin() -> Result<(), String> {
     empty_recycle_bin_sync()?;
-    let _ = append_action("Корзина", "Корзина диска C:", 0);
+    let _ = append_action("Корзина", "Корзины всех локальных накопителей", 0);
     Ok(())
 }
 
@@ -2072,6 +2299,7 @@ fn cleanup_sync(items: Vec<CleanupItem>) -> Result<CleanupReport, String> {
     let settings = read_settings();
     let mut report = CleanupReport::default();
     let mut seen = HashSet::new();
+    let mut admin_retry: Vec<(CleanupItem, PathBuf)> = Vec::new();
     for item in items {
         let key = normalize_path(Path::new(&item.path));
         if !seen.insert(key) {
@@ -2126,11 +2354,11 @@ fn cleanup_sync(items: Vec<CleanupItem>) -> Result<CleanupReport, String> {
             size: meta.len(),
             ..item
         };
-        match fs::remove_file(&source) {
+        match send_to_recycle_bin(&source) {
             Ok(_) => {
                 report.deleted_items += 1;
                 report.deleted_bytes = report.deleted_bytes.saturating_add(current_item.size);
-                let _ = append_action("Удаление", &current_item.path, current_item.size);
+                let _ = append_action("Корзина", &current_item.path, current_item.size);
             }
             Err(_err) if !source.exists() => {
                 report.failed_items += 1;
@@ -2138,18 +2366,58 @@ fn cleanup_sync(items: Vec<CleanupItem>) -> Result<CleanupReport, String> {
                     .failures
                     .push(format!("Файл уже отсутствует: {}", current_item.path));
             }
-            Err(err) => {
-                report.failed_items += 1;
-                report
-                    .failures
-                    .push(format!("Не удалось удалить {}: {}", current_item.path, err));
+            Err(_err) => {
+                admin_retry.push((current_item, source));
             }
         }
     }
+
+    if !admin_retry.is_empty() {
+        let admin_paths = admin_retry
+            .iter()
+            .map(|(_, path)| path.clone())
+            .collect::<Vec<_>>();
+        match recycle_files_with_admin(&admin_paths) {
+            Ok((_success_count, failures)) => {
+                let failed_paths = failures
+                    .iter()
+                    .filter_map(|failure| {
+                        failure
+                            .split_once(" :: ")
+                            .map(|(path, _)| normalize_path(Path::new(path)))
+                    })
+                    .collect::<HashSet<_>>();
+                for (item, path) in admin_retry {
+                    if failed_paths.contains(&normalize_path(&path)) {
+                        report.failed_items += 1;
+                    } else {
+                        report.deleted_items += 1;
+                        report.deleted_bytes = report.deleted_bytes.saturating_add(item.size);
+                        let _ = append_action("Корзина", &item.path, item.size);
+                    }
+                }
+                report.failures.extend(failures.into_iter().map(|failure| {
+                    format!(
+                        "Не удалось отправить в Корзину даже с правами администратора: {failure}"
+                    )
+                }));
+            }
+            Err(error) => {
+                report.failed_items += admin_retry.len();
+                report
+                    .failures
+                    .push(format!("Запрос прав администратора не завершён: {error}"));
+            }
+        }
+    }
+
     if report.deleted_items > 0 {
         let _ = append_action(
             "Очистка",
-            &format!("Безвозвратно удалено: {} файлов", report.deleted_items),
+            &format!(
+                "Перемещено в Корзину Windows: {} файлов",
+                report.deleted_items
+            ),
             report.deleted_bytes,
         );
     }
@@ -2596,6 +2864,7 @@ pub fn run() {
             is_autostart_enabled,
             smart_clean_now,
             analyze_storage,
+            mounted_drives,
             browser_caches,
             browser_data_summary_cmd,
             cleanup_browser_data,

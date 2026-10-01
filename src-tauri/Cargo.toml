@@ -1,6 +1,6 @@
 [package]
 name = "pc-cleaner"
-version = "0.3.6"
+version = "0.3.8"
 description = "One-click Windows cleanup and deep disk analysis utility"
 authors = ["PC Cleaner"]
 edition = "2024"
