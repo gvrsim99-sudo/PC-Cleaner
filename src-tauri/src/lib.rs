@@ -19,7 +19,7 @@ use walkdir::WalkDir;
 
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
-const APP_VERSION: &str = "0.3.5";
+const APP_VERSION: &str = "0.3.6";
 const UPDATE_MANIFEST_URL: &str =
     "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest/download/latest.json";
 const RELEASE_PAGE_URL: &str = "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest";
@@ -403,10 +403,6 @@ fn purge_expired_quarantine(settings: &CleanerSettings) -> Result<(usize, u64), 
     Ok((purged, purged_bytes))
 }
 
-fn quarantine_usage(manifest: &[QuarantineItem]) -> u64 {
-    manifest.iter().map(|item| item.size).sum()
-}
-
 fn emit_progress(
     app: &AppHandle,
     stage: &str,
@@ -433,36 +429,6 @@ fn emit_progress(
             found_items,
         },
     );
-}
-
-fn move_to_quarantine(
-    item: &CleanupItem,
-    manifest: &mut Vec<QuarantineItem>,
-) -> Result<(), String> {
-    let source = PathBuf::from(&item.path);
-    if !source.is_file() {
-        return Err(format!("Файл недоступен: {}", item.path));
-    }
-    if source.starts_with(quarantine_root()) {
-        return Err(format!("Источник уже находится в карантине: {}", item.path));
-    }
-    let root = quarantine_root();
-    fs::create_dir_all(&root).map_err(|e| format!("Карантин: {}", e))?;
-    let id = blake3::hash(format!("{}:{}", item.path, unix_now()).as_bytes())
-        .to_hex()
-        .to_string();
-    let destination = root.join(format!("{}.bin", id));
-    fs::rename(&source, &destination).map_err(|e| format!("{}: {}", item.path, e))?;
-    manifest.push(QuarantineItem {
-        id,
-        original_path: item.path.clone(),
-        quarantine_path: destination.to_string_lossy().to_string(),
-        name: item.name.clone(),
-        size: item.size,
-        moved_unix: unix_now(),
-    });
-    let _ = append_action("Карантин", &item.path, item.size);
-    Ok(())
 }
 
 fn path_from_env(key: &str) -> Option<PathBuf> {
@@ -749,7 +715,15 @@ fn configured_junk_roots(
             }
         }
     }
-    roots
+    let mut unique = Vec::with_capacity(roots.len());
+    let mut seen = HashSet::new();
+    for root in roots {
+        let key = normalize_path(&root.0);
+        if seen.insert(key) {
+            unique.push(root);
+        }
+    }
+    unique
 }
 
 fn collect_old_installers(app: &AppHandle, summary: &mut ScanSummary, settings: &CleanerSettings) {
@@ -2096,13 +2070,7 @@ fn empty_recycle_bin() -> Result<(), String> {
 
 fn cleanup_sync(items: Vec<CleanupItem>) -> Result<CleanupReport, String> {
     let settings = read_settings();
-    let _ = purge_expired_quarantine(&settings)?;
     let mut report = CleanupReport::default();
-    let mut manifest = read_quarantine_manifest();
-    let max_quarantine_bytes = settings
-        .quarantine_max_gb
-        .saturating_mul(1024 * 1024 * 1024);
-    let mut quarantine_bytes = quarantine_usage(&manifest);
     let mut seen = HashSet::new();
     for item in items {
         let key = normalize_path(Path::new(&item.path));
@@ -2128,7 +2096,7 @@ fn cleanup_sync(items: Vec<CleanupItem>) -> Result<CleanupReport, String> {
         if item.category == "Дубликаты" && is_protected_duplicate_path(&source) {
             report.failed_items += 1;
             report.failures.push(format!(
-                "Защищённая папка: дубликат не перемещён — {}",
+                "Защищённая папка: дубликат не удалён — {}",
                 item.path
             ));
             continue;
@@ -2154,36 +2122,34 @@ fn cleanup_sync(items: Vec<CleanupItem>) -> Result<CleanupReport, String> {
                 .push(format!("Недавний файл защищён: {}", item.path));
             continue;
         }
-        let current_size = meta.len();
-        if quarantine_bytes.saturating_add(current_size) > max_quarantine_bytes {
-            report.failed_items += 1;
-            report.failures.push(format!(
-                "Лимит карантина {} GB будет превышен: {}",
-                settings.quarantine_max_gb, item.path
-            ));
-            continue;
-        }
         let current_item = CleanupItem {
             size: meta.len(),
             ..item
         };
-        match move_to_quarantine(&current_item, &mut manifest) {
+        match fs::remove_file(&source) {
             Ok(_) => {
                 report.deleted_items += 1;
                 report.deleted_bytes = report.deleted_bytes.saturating_add(current_item.size);
-                quarantine_bytes = quarantine_bytes.saturating_add(current_item.size);
+                let _ = append_action("Удаление", &current_item.path, current_item.size);
+            }
+            Err(_err) if !source.exists() => {
+                report.failed_items += 1;
+                report
+                    .failures
+                    .push(format!("Файл уже отсутствует: {}", current_item.path));
             }
             Err(err) => {
                 report.failed_items += 1;
-                report.failures.push(err);
+                report
+                    .failures
+                    .push(format!("Не удалось удалить {}: {}", current_item.path, err));
             }
         }
     }
-    write_quarantine_manifest(&manifest)?;
     if report.deleted_items > 0 {
         let _ = append_action(
             "Очистка",
-            &format!("Перемещено в карантин: {} файлов", report.deleted_items),
+            &format!("Безвозвратно удалено: {} файлов", report.deleted_items),
             report.deleted_bytes,
         );
     }

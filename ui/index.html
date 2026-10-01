@@ -9,7 +9,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top left, #192536 0%, #0b0f14 42%); }
     .app { max-width: 1120px; margin: 0 auto; padding: 34px; }
-    .top { display:flex; justify-content:space-between; align-items:center; margin-bottom: 26px; }
+    .top { position:sticky; top:0; z-index:40; display:flex; justify-content:space-between; align-items:center; gap:18px; margin:0 -34px 26px; padding:14px 34px; background:rgba(11,15,20,.94); backdrop-filter:blur(14px); border-bottom:1px solid rgba(255,255,255,.07); }
     .brand { display:flex; gap:12px; align-items:center; }
     .logo { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; background:#dcecff; color:#0b0f14; font-weight:900; }
     h1 { margin:0; font-size:25px; letter-spacing:-.4px; }
@@ -30,7 +30,7 @@
     .metric { display:flex; justify-content:space-between; gap:14px; padding:16px 17px; background:#121a23; border-radius:15px; border:1px solid rgba(255,255,255,.06); }
     .metric strong { font-size:16px; }
     .metric span { color:#aebdcc; }
-    .section { margin-top:22px; scroll-margin-top:18px; }
+    .section { margin-top:22px; scroll-margin-top:88px; }
     .section h2 { margin:0 0 14px; font-size:18px; }
     .table { width:100%; border-collapse:collapse; overflow:hidden; border-radius:15px; }
     .table th,.table td { text-align:left; padding:13px 12px; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
@@ -52,6 +52,10 @@
     .nav-actions { display:flex; gap:8px; flex-wrap:wrap; }
     .nav-btn { padding:10px 13px; border-radius:12px; background:#121a23; color:#cbd6e2; border:1px solid rgba(255,255,255,.07); text-decoration:none; display:inline-flex; align-items:center; }
     .nav-btn:hover { background:#192431; }
+    .nav-btn.home { background:#e7f1ff; color:#091018; border-color:transparent; }
+    .back-top { position:fixed; right:22px; bottom:22px; z-index:45; width:46px; height:46px; padding:0; border-radius:50%; background:#e7f1ff; color:#091018; box-shadow:0 10px 30px rgba(0,0,0,.35); opacity:0; pointer-events:none; transform:translateY(8px); transition:.2s ease; }
+    .back-top.visible { opacity:1; pointer-events:auto; transform:translateY(0); }
+    .clean-summary { margin-top:12px; padding:11px 13px; background:#0e1712; border:1px solid rgba(130,220,150,.14); border-radius:12px; color:#b8d8c0; font-size:12px; line-height:1.45; }
     .progress-wrap { display:none; margin:8px 0 12px; }
     .progress-top { display:flex; justify-content:space-between; gap:12px; color:#b9c5d1; font-size:12px; margin-bottom:7px; }
     .progress-bar { height:8px; background:#18212b; border-radius:99px; overflow:hidden; }
@@ -78,17 +82,17 @@
     .modal-card { width:min(720px,100%); max-height:88vh; overflow:auto; background:#101720; border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:22px; box-shadow:0 30px 90px rgba(0,0,0,.5); }
     .preview-image { width:100%; max-height:55vh; object-fit:contain; border-radius:12px; background:#0b0f14; }
     @media (max-width: 860px) { .grid-2 { grid-template-columns:1fr; } .browser-card,.storage-row { grid-template-columns:1fr auto; } }
-    @media (max-width: 860px) { .hero { grid-template-columns:1fr; } .app { padding:20px; } .score { font-size:60px; } }
+    @media (max-width: 860px) { .hero { grid-template-columns:1fr; } .app { padding:20px; } .top { margin:0 -20px 20px; padding:12px 20px; align-items:flex-start; } .nav-actions { overflow-x:auto; flex-wrap:nowrap; padding-bottom:3px; max-width:100%; } .nav-btn { flex:0 0 auto; } .score { font-size:60px; } }
   </style>
 </head>
 <body>
 <div class="app">
   <div class="top">
     <div class="brand"><div class="logo">PC</div><div><h1>PC Cleaner</h1><div class="muted">Безопасная очистка и глубокий анализ</div></div></div>
-    <div class="nav-actions"><a class="nav-btn" id="storageNavBtn" href="#storageSection">Хранилище</a><a class="nav-btn" id="browserNavBtn" href="#browserSection">Браузеры</a><a class="nav-btn" id="settingsNavBtn" href="#settingsSection">Настройки</a><a class="nav-btn" id="updatesNavBtn" href="#updatesSection">Обновления</a></div>
+    <div class="nav-actions"><a class="nav-btn home" id="homeNavBtn" href="#homeSection">Главная</a><a class="nav-btn" href="#resultsSection">Результаты</a><a class="nav-btn" id="storageNavBtn" href="#storageSection">Хранилище</a><a class="nav-btn" id="browserNavBtn" href="#browserSection">Браузеры</a><a class="nav-btn" id="largestNavBtn" href="#largestSection">Крупные файлы</a><a class="nav-btn" id="duplicatesNavBtn" href="#duplicatesSection">Дубликаты</a><a class="nav-btn" id="settingsNavBtn" href="#settingsSection">Настройки</a><a class="nav-btn" id="updatesNavBtn" href="#updatesSection">Обновления</a></div>
   </div>
 
-  <div class="hero">
+  <div class="hero" id="homeSection">
     <section class="panel scan">
       <div class="label">Найдено мусора</div>
       <div class="score" id="total">0 <small>GB</small></div>
@@ -100,10 +104,9 @@
       <div class="actions">
         <button class="primary" id="scanBtn">Глубокое сканирование</button>
         <button class="ghost" id="cancelScanBtn" disabled>Отмена</button>
-        <button class="ghost" id="smartCleanNowBtn">Smart Clean</button>
-        <button class="ghost" id="cleanBtn" disabled>Очистить выбранное</button>
+        <button class="primary" id="cleanBtn" disabled>Очистить безопасный мусор</button>
       </div>
-      <div class="footnote">Автоудаление ограничено только категориями, помеченными ядром как безопасные. Недавние и занятые файлы пропускаются.</div>
+      <div class="clean-summary" id="cleanSummary">После сканирования PC Cleaner сам выберет безопасный мусор и лишние копии. Личные файлы, свежие данные и объекты, требующие проверки, автоматически не удаляются.</div>
     </section>
 
     <section class="panel">
@@ -114,17 +117,17 @@
     </section>
   </div>
 
-  <section class="panel section">
+  <section class="panel section" id="resultsSection">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
       <div>
         <h2 style="margin-bottom:4px">Найденные элементы</h2>
-        <div class="muted" id="selectionStatus">После сканирования выберите, что удалить.</div>
+        <div class="muted" id="selectionStatus">После сканирования безопасные элементы будут выбраны автоматически.</div>
       </div>
       <div class="actions">
         <select id="categoryFilter" class="ghost" style="padding:10px 12px">
           <option value="all">Все категории</option>
         </select>
-        <button class="ghost" id="selectSafeBtn" disabled>Выбрать безопасные</button>
+        <button class="ghost" id="selectSafeBtn" disabled>Выбрать всё безопасное</button>
         <button class="ghost" id="clearSelectionBtn" disabled>Снять выбор</button>
       </div>
     </div>
@@ -155,7 +158,7 @@
     <div id="largest"><div class="empty">Сканирование ещё не запускалось.</div></div>
   </section>
 
-  <section class="panel section">
+  <section class="panel section" id="quarantineSection" style="display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
       <div>
         <h2 style="margin-bottom:4px">Карантин</h2>
@@ -180,7 +183,7 @@
     <div id="activityList" style="margin-top:14px"><div class="empty">История пока пуста.</div></div>
   </section>
 
-  <section class="panel section">
+  <section class="panel section" id="duplicatesSection">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
       <div>
         <h2 style="margin-bottom:4px">Дубликаты</h2>
@@ -228,7 +231,7 @@
         <textarea id="setExclusions" placeholder="C:\Users\User\Documents\Рабочее\nC:\Games"></textarea>
       </div>
       <div class="setting-card">
-        <div class="label">Разрешённая очистка и карантин</div>
+        <div class="label">Безопасность очистки</div>
         <div class="setting-row"><label><input type="checkbox" id="allowTemp"> Временные файлы</label></div>
         <div class="setting-row"><label><input type="checkbox" id="allowSystemTemp"> Системные временные файлы</label></div>
         <div class="setting-row"><label><input type="checkbox" id="allowBrowserCache"> Кэш браузера</label></div>
@@ -238,8 +241,8 @@
         <div class="setting-row"><label><input type="checkbox" id="allowAppCache"> Кэш приложений</label></div>
         <div class="setting-row"><label><input type="checkbox" id="allowDuplicates"> Дубликаты</label></div>
         <div class="setting-row"><label><input type="checkbox" id="allowBrowserData"> Cookies / история / данные сайтов (требует предупреждения)</label></div>
-        <div class="setting-row"><div><div>Максимум карантина</div><div class="muted">Новые файлы не будут перемещены сверх лимита</div></div><input id="setQuarantineMaxGb" type="number" min="1" max="1000" style="width:100px" /></div>
-        <div class="setting-row"><div><div>Срок хранения карантина</div><div class="muted">После срока старые файлы удаляются окончательно</div></div><input id="setQuarantineRetentionDays" type="number" min="1" max="3650" style="width:100px" /></div>
+        <div class="setting-row" style="display:none"><div><div>Максимум карантина</div><div class="muted">Устаревшая настройка для старых восстановимых очисток</div></div><input id="setQuarantineMaxGb" type="number" min="1" max="1000" style="width:100px" /></div>
+        <div class="setting-row" style="display:none"><div><div>Срок хранения карантина</div><div class="muted">Для старых восстановимых очисток</div></div><input id="setQuarantineRetentionDays" type="number" min="1" max="3650" style="width:100px" /></div>
         <div class="setting-row"><div><div>Лимит Smart Clean</div><div class="muted">Максимум данных за одну автооперацию</div></div><input id="setSmartMaxGb" type="number" min="1" max="100" style="width:100px" /></div>
       </div>
     </div>
@@ -254,6 +257,7 @@
   </section>
 </div>
 
+<button class="back-top" id="backTopBtn" aria-label="Наверх" title="Наверх">↑</button>
 <div class="modal" id="previewModal"><div class="modal-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 id="previewTitle" style="margin:0">Предпросмотр</h2><button class="ghost" id="closePreviewBtn">Закрыть</button></div><div id="previewBody" style="margin-top:14px"></div></div></div>
 
 <script>
@@ -499,15 +503,15 @@
   });
 
   $('selectSafeBtn').addEventListener('click', () => {
-    if (!lastScan) return;
-    const filter = $('categoryFilter').value;
-    lastScan.items.filter(x => x.safe_to_delete && (filter === 'all' || x.category === filter)).forEach(x => selectedIds.add(x.id));
-    renderItems();
+    selectSafeForCleanup();
   });
 
   $('clearSelectionBtn').addEventListener('click', () => {
     selectedIds.clear();
+    selectedDuplicatePaths.clear();
+    renderDuplicateGroups();
     renderItems();
+    $('cleanSummary').textContent = "Выбор очищен. После следующего сканирования безопасные элементы снова будут выбраны автоматически.";
   });
 
   $('duplicates').addEventListener('change', (event) => {
@@ -573,13 +577,38 @@
     }
   });
 
+  function selectSafeForCleanup() {
+    if (!lastScan) return;
+    selectedIds.clear();
+    selectedDuplicatePaths.clear();
+    const allowed = new Set(appSettings?.cleanup_allowed_categories || []);
+    lastScan.items
+      .filter(x => x.safe_to_delete && allowed.has(x.category))
+      .forEach(x => selectedIds.add(x.id));
+    if (allowed.has('Дубликаты')) {
+      (lastScan.duplicates || []).forEach(group => {
+        const keeper = chooseDuplicateKeeper(group);
+        group.files.filter(file => file.path !== keeper.path).forEach(file => selectedDuplicatePaths.add(file.path));
+      });
+    }
+    renderDuplicateGroups();
+    renderItems();
+    const regular = selectedIds.size;
+    const duplicates = selectedDuplicatePaths.size;
+    const total = regular + duplicates;
+    const totalBytes = lastScan.items.filter(x => selectedIds.has(x.id)).reduce((sum, x) => sum + x.size, 0)
+      + allDuplicateFiles().filter(x => selectedDuplicatePaths.has(x.path)).reduce((sum, x) => sum + x.size, 0);
+    $('cleanSummary').textContent = total
+      ? "Автоматически выбрано " + total.toLocaleString('ru-RU') + " безопасных элементов · " + bytes(totalBytes) + ". Личные файлы, свежие данные и объекты «требует проверки» не выбраны."
+      : "Безопасных элементов для удаления не найдено.";
+  }
+
   $('scanBtn').addEventListener('click', async () => {
     selectedIds.clear();
     selectedDuplicatePaths.clear();
     $('scanBtn').disabled = true;
     $('cleanBtn').disabled = true;
     $('cancelScanBtn').disabled = false;
-    $('smartCleanNowBtn').disabled = true;
     $('progressWrap').style.display = 'block';
     $('progressFill').style.width = '0%';
     $('progressStage').textContent = 'Подготовка';
@@ -589,12 +618,14 @@
       $('status').textContent = 'Быстрый анализ: временные файлы и крупные файлы…';
       lastScan = await invoke('scan_system');
       render(lastScan);
+      selectSafeForCleanup();
       $('status').textContent = `Основной анализ завершён: найдено ${lastScan.total_items.toLocaleString('ru-RU')} файлов. Теперь проверяем точные дубликаты…`;
       $('progressWrap').style.display = 'block';
       try {
         lastScan.duplicates = await invoke('scan_duplicates_only');
         render(lastScan);
-        $('status').textContent = `Сканирование завершено: ${lastScan.total_items.toLocaleString('ru-RU')} файлов · дубликатов ${lastScan.duplicates.length}.`;
+        selectSafeForCleanup();
+        $('status').textContent = "Сканирование завершено: найдено " + lastScan.total_items.toLocaleString('ru-RU') + " файлов · автоматически выбрано безопасных: " + (selectedIds.size + selectedDuplicatePaths.size) + ".";
       } catch (duplicateError) {
         $('status').textContent = `Основной анализ завершён, но поиск дубликатов не удалось завершить: ${duplicateError}`;
       }
@@ -604,7 +635,6 @@
       $('progressWrap').style.display = 'none';
       $('scanBtn').disabled = false;
       $('cancelScanBtn').disabled = true;
-      $('smartCleanNowBtn').disabled = false;
     }
   });
 
@@ -635,19 +665,22 @@
       const p = String(item.path || '').toLowerCase().replaceAll('/', '\\');
       return systemRoots.some(root => p.includes(root));
     }).length;
-    const ok = confirm(`Будет перемещено в карантин: ${selected.length.toLocaleString('ru-RU')} файлов, ${bytes(selectedBytes)}.\nСистемных файлов: ${systemCount}.\nНедавних файлов: 0 (защита недавних файлов включена).\n\nОригиналы можно будет восстановить из карантина.`);
+    const ok = confirm(`Безвозвратно удалить ${selected.length.toLocaleString('ru-RU')} безопасных файлов и лишних копий, ${bytes(selectedBytes)}?\nСистемных файлов: ${systemCount}.\nНедавних файлов: 0 (защита недавних файлов включена).\n\nЛичные файлы и объекты, требующие проверки, автоматически не удаляются.`);
     if (!ok) return;
     $('cleanBtn').disabled = true;
-    $('status').textContent = `Перемещаем ${selected.length.toLocaleString('ru-RU')} выбранных файлов в карантин…`;
+    $('status').textContent = `Удаляем ${selected.length.toLocaleString('ru-RU')} безопасных файлов без карантина…`;
     try {
       const report = await invoke('cleanup', { items: selected });
       selected.forEach(x => selectedIds.delete(x.id));
-      $('status').textContent = `Перемещено в карантин ${report.deleted_items.toLocaleString('ru-RU')} файлов · ${bytes(report.deleted_bytes)}. Ошибок: ${report.failed_items}.`;
-      await renderQuarantine();
+      $('status').textContent = `Удалено безвозвратно ${report.deleted_items.toLocaleString('ru-RU')} файлов · освобождено ${bytes(report.deleted_bytes)}. Ошибок: ${report.failed_items}.`;
+      $('cleanSummary').textContent = report.deleted_items
+        ? `Очистка завершена: удалено ${report.deleted_items.toLocaleString('ru-RU')} файлов · ${bytes(report.deleted_bytes)} освобождено.`
+        : 'Безопасные файлы не были удалены.';
       await renderActivity();
       if (report.deleted_items) {
         lastScan = await invoke('scan_system');
         render(lastScan);
+        selectSafeForCleanup();
       } else {
         renderItems();
       }
@@ -879,12 +912,12 @@
   });
 
   $('browserCleanBtn').addEventListener("click", async () => {
-    const ok = confirm("Переместить безопасные кэши Chrome и Edge в карантин? Браузеры лучше закрыть перед очисткой.");
+    const ok = confirm("Безвозвратно удалить безопасные кэши Chrome и Edge? Браузеры лучше закрыть перед очисткой.");
     if (!ok) return;
     $('browserCleanBtn').disabled = true;
     try {
       const report = await invoke("cleanup_browser_caches");
-      $('browserStatus').textContent = "В карантин перемещено " + report.deleted_items + " файлов · " + bytes(report.deleted_bytes) + ". Ошибок: " + report.failed_items;
+      $('browserStatus').textContent = "Удалено " + report.deleted_items + " файлов · освобождено " + bytes(report.deleted_bytes) + ". Ошибок: " + report.failed_items;
       await renderQuarantine(); await renderActivity(); await scanBrowsers();
     } catch (error) { $('browserStatus').textContent = "Ошибка очистки: " + error; }
   });
@@ -896,19 +929,6 @@
     try { await invoke("empty_recycle_bin"); $('status').textContent = "Корзина очищена."; await renderActivity(); }
     catch (error) { $('status').textContent = "Ошибка очистки корзины: " + error; }
     finally { $('recycleBinBtn').disabled = false; }
-  });
-
-  $('smartCleanNowBtn').addEventListener("click", async () => {
-    const ok = confirm("Запустить Smart Clean? Будут обработаны только безопасные категории согласно настройкам.");
-    if (!ok) return;
-    $('smartCleanNowBtn').disabled = true;
-    $('status').textContent = "Smart Clean выполняется…";
-    try {
-      const report = await invoke("smart_clean_now");
-      $('status').textContent = "Smart Clean: в карантин " + report.deleted_items + " файлов · " + bytes(report.deleted_bytes) + ".";
-      await renderQuarantine(); await renderActivity();
-    } catch (error) { $('status').textContent = "Ошибка Smart Clean: " + error; }
-    finally { $('smartCleanNowBtn').disabled = false; }
   });
 
   function resetUpdateActions() {
@@ -1029,22 +1049,19 @@
   $('closePreviewBtn').addEventListener("click", () => { $('previewModal').style.display = "none"; });
   $('previewModal').addEventListener("click", event => { if (event.target === $('previewModal')) $('previewModal').style.display = "none"; });
 
-  ["storageNavBtn","browserNavBtn","settingsNavBtn","updatesNavBtn"].forEach(id => {
-    $(id).addEventListener("click", () => {
-      const map = {storageNavBtn:"storageSection", browserNavBtn:"browserSection", settingsNavBtn:"settingsSection", updatesNavBtn:"updatesSection"};
-      const target = $(map[id]);
+  document.querySelectorAll('.nav-btn[href^="#"]').forEach(link => {
+    link.addEventListener('click', event => {
+      event.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
       if (!target) return;
-      const scroller = document.scrollingElement || document.documentElement || document.body;
-      const currentTop = scroller.scrollTop || window.pageYOffset || 0;
-      const top = target.getBoundingClientRect().top + currentTop;
-      const nextTop = Math.max(0, Math.floor(top - 12));
-      scroller.scrollTop = nextTop;
-      document.documentElement.scrollTop = nextTop;
-      document.body.scrollTop = nextTop;
-      window.scrollTo(0, nextTop);
-      location.hash = map[id];
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      history.replaceState(null, '', link.getAttribute('href'));
     });
   });
+  $('backTopBtn').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  window.addEventListener('scroll', () => {
+    $('backTopBtn').classList.toggle('visible', window.scrollY > 500);
+  }, { passive:true });
 
   initProgressListener();
   loadSettings().then(() => setTimeout(checkUpdates, 700));
