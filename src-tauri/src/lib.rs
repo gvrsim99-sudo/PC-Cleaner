@@ -19,7 +19,7 @@ use walkdir::WalkDir;
 
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
-const APP_VERSION: &str = "0.3.4";
+const APP_VERSION: &str = "0.3.5";
 const UPDATE_MANIFEST_URL: &str =
     "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest/download/latest.json";
 const RELEASE_PAGE_URL: &str = "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest";
