@@ -161,7 +161,7 @@
   <section class="panel section" id="drivesSection">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
       <div><h2 style="margin-bottom:4px">Накопители</h2><div class="muted" id="drivesStatus">Определяем подключённые локальные и внешние накопители.</div></div>
-      <div class="actions"><button class="ghost" id="refreshDrivesBtn">Обновить</button><button class="primary" id="scanDrivesBtn">Сканировать все накопители</button></div>
+      <div class="actions"><button class="ghost" id="refreshDrivesBtn">Обновить</button><button class="primary" id="scanDrivesBtn">Глубокое сканирование всех накопителей</button></div>
     </div>
     <div id="drivesList" style="margin-top:14px"><div class="empty">Загрузка списка накопителей…</div></div>
   </section>
@@ -338,7 +338,7 @@
     }
     const externalCount = mountedDrives.filter(d => !d.is_system).length;
     $('drivesStatus').textContent = externalCount
-      ? `Найдено ${mountedDrives.length} накопителей · внешних/дополнительных: ${externalCount}. Глубокое сканирование проверяет их безопасные Temp/Cache и дубликаты.`
+      ? `Найдено ${mountedDrives.length} накопителей · внешних/дополнительных: ${externalCount}. Входят в глубокое сканирование: безопасные Temp/Cache, крупные файлы и точные дубликаты.`
       : `Найден системный накопитель ${mountedDrives[0].root}.`;
     $('drivesList').innerHTML = mountedDrives.map(d => {
       const used = Number(d.used_percent || 0).toFixed(0);
@@ -684,24 +684,18 @@
     $('progressFill').style.width = '0%';
     $('progressStage').textContent = 'Подготовка';
     $('progressText').textContent = '0%';
-    $('status').textContent = 'Идёт анализ временных файлов, кэшей, крупных файлов и дубликатов…';
+    $('status').textContent = 'Глубокое сканирование: накопители, временные файлы, крупные файлы и дубликаты…';
     try {
-      $('status').textContent = 'Быстрый анализ: временные файлы и крупные файлы…';
-      lastScan = await invoke('scan_system');
+      lastScan = await invoke('deep_scan');
       render(lastScan);
-      selectSafeForCleanup();
-      $('status').textContent = `Основной анализ завершён: найдено ${lastScan.total_items.toLocaleString('ru-RU')} файлов. Теперь проверяем точные дубликаты…`;
-      $('progressWrap').style.display = 'block';
-      try {
-        lastScan.duplicates = await invoke('scan_duplicates_only');
-        render(lastScan);
+      if (lastScan.cancelled) {
+        $('status').textContent = 'Глубокое сканирование отменено. Показаны результаты, успевшие собраться до отмены.';
+      } else {
         selectSafeForCleanup();
-        $('status').textContent = "Сканирование завершено: найдено " + lastScan.total_items.toLocaleString('ru-RU') + " файлов · автоматически выбрано безопасных: " + (selectedIds.size + selectedDuplicatePaths.size) + ".";
-      } catch (duplicateError) {
-        $('status').textContent = `Основной анализ завершён, но поиск дубликатов не удалось завершить: ${duplicateError}`;
+        $('status').textContent = "Глубокое сканирование завершено: найдено " + lastScan.total_items.toLocaleString('ru-RU') + " файлов · автоматически выбрано безопасных: " + (selectedIds.size + selectedDuplicatePaths.size) + ".";
       }
     } catch (error) {
-      $('status').textContent = `Ошибка сканирования: ${error}`;
+      $('status').textContent = `Ошибка глубокого сканирования: ${error}`;
     } finally {
       $('progressWrap').style.display = 'none';
       $('scanBtn').disabled = false;
@@ -711,8 +705,13 @@
 
   $('cancelScanBtn').addEventListener('click', async () => {
     $('cancelScanBtn').disabled = true;
-    $('status').textContent = 'Останавливаем сканирование…';
-    try { await invoke('cancel_scan'); } catch (error) { $('status').textContent = 'Ошибка остановки: ' + error; }
+    $('status').textContent = 'Отменяем глубокое сканирование…';
+    try {
+      await invoke('cancel_scan');
+    } catch (error) {
+      $('cancelScanBtn').disabled = false;
+      $('status').textContent = 'Ошибка остановки: ' + error;
+    }
   });
 
   $('cleanBtn').addEventListener('click', async () => {
