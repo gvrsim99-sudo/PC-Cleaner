@@ -19,7 +19,7 @@ use walkdir::WalkDir;
 
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
-const APP_VERSION: &str = "0.3.8";
+const APP_VERSION: &str = "0.3.9";
 const UPDATE_MANIFEST_URL: &str =
     "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest/download/latest.json";
 const RELEASE_PAGE_URL: &str = "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest";
@@ -81,6 +81,7 @@ pub struct ScanSummary {
     pub scanned_roots: Vec<String>,
     pub warnings: Vec<String>,
     pub drive: DriveInfo,
+    pub cancelled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -587,10 +588,16 @@ fn add_item(summary: &mut ScanSummary, item: CleanupItem) {
 }
 
 fn hash_file(path: &Path) -> Option<String> {
+    if SCAN_CANCELLED.load(Ordering::Relaxed) {
+        return None;
+    }
     let mut file = fs::File::open(path).ok()?;
     let mut hasher = blake3::Hasher::new();
     let mut buffer = [0u8; 1024 * 1024];
     loop {
+        if SCAN_CANCELLED.load(Ordering::Relaxed) {
+            return None;
+        }
         let read = file.read(&mut buffer).ok()?;
         if read == 0 {
             break;
@@ -1091,8 +1098,14 @@ fn scan_duplicates_configured(
     for (size, paths) in by_size.into_iter().filter(|(_, p)| p.len() > 1) {
         let mut by_hash: HashMap<String, Vec<PathBuf>> = HashMap::new();
         for path in paths {
+            if SCAN_CANCELLED.load(Ordering::Relaxed) {
+                return;
+            }
             if let Some(hash) = hash_file(&path) {
                 by_hash.entry(hash).or_default().push(path);
+            }
+            if SCAN_CANCELLED.load(Ordering::Relaxed) {
+                return;
             }
             hashed += 1;
             if hashed % 50 == 0 {
@@ -1314,6 +1327,19 @@ fn scan_recycle_bin(summary: &mut ScanSummary, settings: &CleanerSettings) {
     }
 }
 
+fn mark_scan_cancelled(app: &AppHandle, summary: &mut ScanSummary) {
+    summary.cancelled = true;
+    emit_progress(
+        app,
+        "Отменено",
+        "Сканирование остановлено пользователем",
+        0,
+        0,
+        summary.total_bytes,
+        summary.total_items,
+    );
+}
+
 fn scan_system_sync(app: &AppHandle, settings: &CleanerSettings) -> ScanSummary {
     SCAN_CANCELLED.store(false, Ordering::Relaxed);
     let mut summary = ScanSummary::default();
@@ -1329,7 +1355,15 @@ fn scan_system_sync(app: &AppHandle, settings: &CleanerSettings) -> ScanSummary 
         0,
     );
     scan_configured_junk(app, &mut summary, settings);
+    if SCAN_CANCELLED.load(Ordering::Relaxed) {
+        mark_scan_cancelled(app, &mut summary);
+        return summary;
+    }
     scan_recycle_bin(&mut summary, settings);
+    if SCAN_CANCELLED.load(Ordering::Relaxed) {
+        mark_scan_cancelled(app, &mut summary);
+        return summary;
+    }
     emit_progress(
         app,
         "Установочные файлы",
@@ -1340,21 +1374,20 @@ fn scan_system_sync(app: &AppHandle, settings: &CleanerSettings) -> ScanSummary 
         summary.total_items,
     );
     collect_old_installers(app, &mut summary, settings);
+    if SCAN_CANCELLED.load(Ordering::Relaxed) {
+        mark_scan_cancelled(app, &mut summary);
+        return summary;
+    }
     collect_largest_configured(app, &mut summary, settings);
+    if SCAN_CANCELLED.load(Ordering::Relaxed) {
+        mark_scan_cancelled(app, &mut summary);
+        return summary;
+    }
     summary.items.sort_by(|a, b| b.size.cmp(&a.size));
     emit_progress(
         app,
-        "Крупные файлы",
-        "Поиск крупных файлов завершён",
-        100,
-        100,
-        summary.total_bytes,
-        summary.total_items,
-    );
-    emit_progress(
-        app,
-        "Завершено",
-        "Сканирование завершено",
+        "Основной анализ",
+        "Основной этап завершён",
         100,
         100,
         summary.total_bytes,
@@ -1366,18 +1399,80 @@ fn scan_system_sync(app: &AppHandle, settings: &CleanerSettings) -> ScanSummary 
 #[tauri::command]
 async fn scan_system(app: AppHandle) -> Result<ScanSummary, String> {
     let settings = read_settings();
-    tauri::async_runtime::spawn_blocking(move || Ok(scan_system_sync(&app, &settings)))
-        .await
-        .map_err(|err| format!("Задача сканирования завершилась с ошибкой: {err}"))?
+    let summary = tauri::async_runtime::spawn_blocking({
+        let app = app.clone();
+        move || scan_system_sync(&app, &settings)
+    })
+    .await
+    .map_err(|err| format!("Задача сканирования завершилась с ошибкой: {err}"))?;
+    if !summary.cancelled {
+        emit_progress(
+            &app,
+            "Завершено",
+            "Сканирование завершено",
+            100,
+            100,
+            summary.total_bytes,
+            summary.total_items,
+        );
+    }
+    Ok(summary)
 }
 
 #[tauri::command]
-async fn scan_duplicates_only(app: AppHandle) -> Result<Vec<DuplicateGroup>, String> {
+async fn deep_scan(app: AppHandle) -> Result<ScanSummary, String> {
     let settings = read_settings();
-    tauri::async_runtime::spawn_blocking(move || {
-        let mut summary = ScanSummary::default();
-        scan_duplicates_configured(&app, &mut summary, &settings);
-        Ok(summary.duplicates)
+    tauri::async_runtime::spawn_blocking({
+        let app = app.clone();
+        move || {
+            let mut summary = scan_system_sync(&app, &settings);
+            if summary.cancelled {
+                return summary;
+            }
+            emit_progress(
+                &app,
+                "Глубокое сканирование",
+                "Проверяем точные дубликаты на доступных накопителях",
+                0,
+                0,
+                summary.total_bytes,
+                summary.total_items,
+            );
+            scan_duplicates_configured(&app, &mut summary, &settings);
+            if SCAN_CANCELLED.load(Ordering::Relaxed) {
+                mark_scan_cancelled(&app, &mut summary);
+                return summary;
+            }
+            emit_progress(
+                &app,
+                "Завершено",
+                "Глубокое сканирование завершено",
+                100,
+                100,
+                summary.total_bytes,
+                summary.total_items,
+            );
+            summary
+        }
+    })
+    .await
+    .map_err(|err| format!("Глубокое сканирование завершилось с ошибкой: {err}"))
+}
+
+#[tauri::command]
+async fn scan_duplicates_only(app: AppHandle) -> Result<serde_json::Value, String> {
+    let settings = read_settings();
+    tauri::async_runtime::spawn_blocking({
+        let app = app.clone();
+        move || {
+            SCAN_CANCELLED.store(false, Ordering::Relaxed);
+            let mut summary = ScanSummary::default();
+            scan_duplicates_configured(&app, &mut summary, &settings);
+            Ok(serde_json::json!({
+                "duplicates": summary.duplicates,
+                "cancelled": SCAN_CANCELLED.load(Ordering::Relaxed)
+            }))
+        }
     })
     .await
     .map_err(|err| format!("Задача поиска дубликатов завершилась с ошибкой: {err}"))?
@@ -2851,6 +2946,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             scan_system,
+            deep_scan,
             scan_duplicates_only,
             cancel_scan,
             cleanup,
