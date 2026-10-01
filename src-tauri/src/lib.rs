@@ -19,7 +19,7 @@ use walkdir::WalkDir;
 
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
-const APP_VERSION: &str = "0.3.3";
+const APP_VERSION: &str = "0.3.4";
 const UPDATE_MANIFEST_URL: &str =
     "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest/download/latest.json";
 const RELEASE_PAGE_URL: &str = "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest";
@@ -1521,6 +1521,34 @@ fn assemble_base64_chunks(urls: &[String], destination: &Path) -> Result<(), Str
 }
 
 #[tauri::command]
+async fn fetch_update_manifest(url: String) -> Result<String, String> {
+    validate_update_url(&url)?;
+    let client = reqwest::Client::builder()
+        .user_agent(format!("PC Cleaner/{}", APP_VERSION))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .map_err(|error| format!("Не удалось подготовить сетевой клиент: {error}"))?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|error| format!("Не удалось получить manifest: {error}"))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("Сервер обновлений вернул HTTP {status}."));
+    }
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("Не удалось прочитать manifest: {error}"))?;
+    if bytes.is_empty() || bytes.len() > 1024 * 1024 {
+        return Err("Manifest имеет недопустимый размер.".into());
+    }
+    String::from_utf8(bytes.to_vec())
+        .map_err(|error| format!("Manifest содержит недопустимые UTF-8 данные: {error}"))
+}
+
+#[tauri::command]
 async fn install_update(
     app: AppHandle,
     version: String,
@@ -2611,6 +2639,7 @@ pub fn run() {
             open_url,
             read_image_preview,
             app_version,
+            fetch_update_manifest,
             install_update,
             get_runtime_info,
             format_bytes

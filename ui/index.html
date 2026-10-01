@@ -668,7 +668,7 @@
       quarantine_max_gb: 10, quarantine_retention_days: 30,
       auto_start: false, minimize_to_tray: true, smart_clean_enabled: false, smart_clean_time: "03:00",
       smart_clean_days: ["SUN"], smart_clean_include_duplicates: false, smart_clean_max_gb: 5,
-      update_manifest_url: "https://raw.githubusercontent.com/gvrsim99-sudo/DefenderGuard/pc-cleaner-updates/pc-cleaner/latest.json", release_page_url: ""
+      update_manifest_url: "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest/download/latest.json", release_page_url: "https://github.com/gvrsim99-sudo/PC-Cleaner/releases/latest"
     };
   }
 
@@ -932,9 +932,8 @@
     $('checkUpdateBtn').disabled = true;
     $('updateStatus').textContent = "Проверяем последнюю версию…";
     try {
-      const response = await fetch(url, {cache:"no-store"});
-      if (!response.ok) throw new Error("HTTP " + response.status);
-      const data = await response.json();
+      const manifestText = await invoke("fetch_update_manifest", { url });
+      const data = JSON.parse(manifestText);
       const current = await invoke("app_version");
       const version = String(data.version || "").trim();
       const downloadUrl = String(data.url || "").trim();

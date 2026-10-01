@@ -1,6 +1,6 @@
 [package]
 name = "pc-cleaner"
-version = "0.3.3"
+version = "0.3.4"
 description = "One-click Windows cleanup and deep disk analysis utility"
 authors = ["PC Cleaner"]
 edition = "2024"
@@ -22,6 +22,7 @@ blake3 = "1"
 chrono = { version = "0.4", features = ["serde"] }
 tauri-plugin-autostart = "2"
 base64 = "0.22.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
